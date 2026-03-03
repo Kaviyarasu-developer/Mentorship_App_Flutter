@@ -4,21 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:practice_app/screens/anouncements_screen.dart';
 import 'package:practice_app/screens/login_screen.dart';
-import 'package:practice_app/screens/user_screens/community_screen.dart';
-import 'package:practice_app/screens/user_screens/home_screen.dart';
-import 'package:practice_app/screens/user_screens/people_search_screen.dart';
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class PrincepalMainScreen extends StatefulWidget {
+  const PrincepalMainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreen();
+  State<PrincepalMainScreen> createState() => _MainScreen();
 }
 
-class _MainScreen extends State<MainScreen> {
-  int _selectedIndex = 0;
+class _MainScreen extends State<PrincepalMainScreen> {
+  List<Map<String, String>> staffs = [];
+  final formkey = GlobalKey<FormState>();
+  final nameController = TextEditingController();
+  final deptController = TextEditingController();
+  final usernameController = TextEditingController();
+  final passwordController = TextEditingController();
+  final clgcodeController = TextEditingController();
   final _userLogin = Hive.box("users");
   String get _role => _userLogin.get("role");
   String get _username => _userLogin.get("username");
@@ -63,16 +65,9 @@ class _MainScreen extends State<MainScreen> {
                       children: [
                         ListTile(
                           leading: const Icon(Icons.add),
-                          title: const Text("Add Student"),
+                          title: const Text("Add Staff"),
                           onTap: () {
-                            _showAddStudentDialog();
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.add),
-                          title: const Text("Add Mentor"),
-                          onTap: () {
-                            _showAddMentorDialog();
+                            _showAddStaffDialog();
                           },
                         ),
                       ],
@@ -101,22 +96,13 @@ class _MainScreen extends State<MainScreen> {
     );
   }
 
-  void _showAddStudentDialog() {
-    final formkey = GlobalKey<FormState>();
-    final rollnoController = TextEditingController();
-    final nameController = TextEditingController();
-    final deptController = TextEditingController();
-    final usernameController = TextEditingController();
-    final passwordController = TextEditingController();
-    final clgcodeController = TextEditingController();
-
+  void _showAddStaffDialog() {
     Future<void> createStudent() async {
       try {
         final response = await http.post(
-          Uri.parse("http://10.0.2.2:8080/app/students/create"),
+          Uri.parse("http://10.0.2.2:8080/app/staff/create"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode({
-            "rollno": int.parse(rollnoController.text),
             "name": nameController.text,
             "dept": deptController.text,
             "username": usernameController.text,
@@ -144,7 +130,7 @@ class _MainScreen extends State<MainScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Add Student"),
+          title: Text("Add Staff"),
           content: SingleChildScrollView(
             child: Form(
               key: formkey,
@@ -152,19 +138,9 @@ class _MainScreen extends State<MainScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    validator: RequiredValidator(
-                      errorText: "Enter Roll no",
-                    ).call,
-                    controller: rollnoController,
-                    decoration: InputDecoration(labelText: "Roll no."),
-                  ),
-
-                  SizedBox(height: 10),
-
-                  TextFormField(
                     validator: RequiredValidator(errorText: "Enter Name").call,
                     controller: nameController,
-                    decoration: InputDecoration(labelText: "Student Name"),
+                    decoration: InputDecoration(labelText: "Staff Name"),
                   ),
 
                   SizedBox(height: 10),
@@ -176,114 +152,6 @@ class _MainScreen extends State<MainScreen> {
                     controller: deptController,
                     decoration: InputDecoration(labelText: "Department"),
                   ),
-                  SizedBox(height: 10),
-
-                  TextFormField(
-                    validator: RequiredValidator(
-                      errorText: "Enter College Code",
-                    ).call,
-                    controller: clgcodeController,
-                    obscureText: true,
-                    decoration: InputDecoration(labelText: "College Code"),
-                  ),
-
-                  SizedBox(height: 10),
-
-                  TextFormField(
-                    validator: RequiredValidator(
-                      errorText: "Enter Username",
-                    ).call,
-                    controller: usernameController,
-                    obscureText: true,
-                    decoration: InputDecoration(labelText: "Create Username"),
-                  ),
-
-                  SizedBox(height: 10),
-
-                  TextFormField(
-                    validator: RequiredValidator(
-                      errorText: "Enter Password",
-                    ).call,
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(labelText: "Create Password"),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                createaction();
-                Navigator.pop(context);
-              },
-              child: Text("Create"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showAddMentorDialog() {
-    final formkey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final usernameController = TextEditingController();
-    final passwordController = TextEditingController();
-    final clgcodeController = TextEditingController();
-
-    Future<void> createStudent() async {
-      try {
-        final response = await http.post(
-          Uri.parse("http://10.0.2.2:8080/app/mentor/create"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({
-            "name": nameController.text,
-            "username": usernameController.text,
-            "password": passwordController.text,
-            "clgcode": int.parse(clgcodeController.text),
-          }),
-        );
-        if (response.statusCode == 200) {
-          // refresh list
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Server error")));
-      }
-    }
-
-    void createaction() {
-      if (formkey.currentState!.validate()) {
-        createStudent();
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Add Mentor"),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formkey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    validator: RequiredValidator(errorText: "Enter Name").call,
-                    controller: nameController,
-                    decoration: InputDecoration(labelText: "Mentor Name"),
-                  ),
-
                   SizedBox(height: 10),
 
                   TextFormField(
@@ -376,20 +244,52 @@ class _MainScreen extends State<MainScreen> {
     );
   }
 
-  final List<Widget> pages = [
-    HomeScreen(),
-    PeopleSearchScreen(),
-    CommunityScreen(),
-    AnouncementsScreen(),
-  ];
+  Future<void> fetchStaffs() async {
+    final response = await http.get(
+      Uri.parse("http://10.0.2.2:8080/app/staff/getall"),
+    );
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      setState(() {
+        staffs = data
+            .map(
+              (e) => {
+                "name": e["name"].toString(),
+                "dept": e["dept"].toString(),
+                "username": e["username"].toString(),
+              },
+            )
+            .toList();
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStaffs();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Main Screen"),
-        backgroundColor: Colors.grey,
+        title: Text("PRINCEPAL SCREEN"),
+        foregroundColor: Colors.blueGrey,
+        backgroundColor: Colors.amber,
+        shadowColor: Colors.blue,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              await fetchStaffs();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Staff list refreshed")),
+              );
+            },
+          ),
           Builder(
             builder: (context) => IconButton(
               icon: const CircleAvatar(
@@ -405,32 +305,40 @@ class _MainScreen extends State<MainScreen> {
           ),
         ],
       ),
-      drawer: Drawer(),
-      body: pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_search),
-            label: "Search",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: "Community"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.announcement),
-            label: "Anouncements",
-          ),
-        ],
-        selectedItemColor: Colors.indigo,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-      ),
+
+      body: staffs.isEmpty
+          ? Center(child: Text("No Staff Added"))
+          : ListView.builder(
+              //physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.all(16),
+              itemCount: staffs.length,
+              itemBuilder: (context, index) {
+                final staff = staffs[index];
+
+                return Card(
+                  elevation: 6,
+                  margin: EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          staff["name"]!,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text("Department: ${staff["dept"]}"),
+                        Text("Username: ${staff["username"]}"),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
