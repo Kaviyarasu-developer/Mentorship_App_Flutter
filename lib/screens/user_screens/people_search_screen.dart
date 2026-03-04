@@ -77,7 +77,7 @@ class _PeopleSearchScreen extends State<PeopleSearchScreen> {
         staff = data
             .map(
               (e) => {
-                "name": e["clgname"].toString(),
+                "name": e["name"].toString(),
                 "role": "STAFF",
                 "username": e["username"].toString(),
               },

@@ -67,7 +67,7 @@ class _LoginScreen extends State<LoginScreen>
             context,
             MaterialPageRoute(builder: (_) => AdminpageScreen()),
           );
-        } else if (role == "PRINCEPAL") {
+        } else if (role == "PRINCIPAL") {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => PrincepalMainScreen()),
