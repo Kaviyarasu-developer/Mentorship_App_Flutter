@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import 'package:practice_app/screens/MentorProfileScreen.dart';
 
 class PeopleSearchScreen extends StatefulWidget {
   const PeopleSearchScreen({super.key});
@@ -161,44 +162,77 @@ class _PeopleSearchScreen extends State<PeopleSearchScreen> {
             itemBuilder: (context, index) {
               final person = currentList[index];
 
-              return Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      const CircleAvatar(radius: 35),
-                      const SizedBox(height: 10),
-                      Text(
-                        person["name"] ?? "",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MentorProfileScreen(
+                        name: person["name"] ?? "",
+                        username: person["username"] ?? "",
+                      ),
+                    ),
+                  );
+                },
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        const CircleAvatar(radius: 35),
+
+                        const SizedBox(height: 10),
+
+                        Text(
+                          person["name"] ?? "",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        person["username"] ?? "",
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        person["role"] ?? "",
-                        style: TextStyle(
-                          color: _getRoleColor(person["role"]),
-                          fontWeight: FontWeight.bold,
+
+                        const SizedBox(height: 4),
+
+                        Text(
+                          person["username"] ?? "",
+                          style: const TextStyle(color: Colors.grey),
                         ),
-                      ),
-                      const Spacer(),
-                      ElevatedButton(
-                        onPressed: () {},
-                        child: const Text("Connect"),
-                      ),
-                    ],
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          person["role"] ?? "",
+                          style: TextStyle(
+                            color: _getRoleColor(person["role"]),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const Spacer(),
+
+                        /// CONNECT BUTTON (UNCHANGED TEXT)
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MentorProfileScreen(
+                                  name: person["name"] ?? "",
+                                  username: person["username"] ?? "",
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text("Connect"),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

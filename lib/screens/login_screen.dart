@@ -55,6 +55,7 @@ class _LoginScreen extends State<LoginScreen>
         final box = Hive.box("users");
 
         // Store values
+        await box.put("id", data["id"]);
         await box.put("role", data["role"]);
         await box.put("username", data["username"]);
 
