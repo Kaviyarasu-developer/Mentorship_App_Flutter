@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -11,14 +10,16 @@ class ClgmngScreen extends StatefulWidget {
 }
 
 class _ClgmngScreenState extends State<ClgmngScreen> {
-  // 🔥 Local college list (temporary storage)
   List<Map<String, String>> colleges = [];
-  final _formkey = GlobalKey<FormState>();
+
+  final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
   final codeController = TextEditingController();
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
+
+  // ---------------- FETCH COLLEGES ----------------
 
   Future<void> fetchColleges() async {
     final response = await http.get(
@@ -26,8 +27,9 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
     );
 
     if (response.statusCode == 200) {
-      print(response.body);
       final List data = jsonDecode(response.body);
+
+      if (!mounted) return;
 
       setState(() {
         colleges = data
@@ -43,90 +45,118 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
     }
   }
 
+  // ---------------- CREATE COLLEGE ----------------
+
+  Future<void> createCollege() async {
+    try {
+      final response = await http.post(
+        Uri.parse("http://10.0.2.2:8080/app/college/create"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "name": nameController.text.trim(),
+          "code": int.parse(codeController.text),
+          "username": usernameController.text.trim(),
+          "password": passwordController.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchColleges();
+
+        nameController.clear();
+        codeController.clear();
+        usernameController.clear();
+        passwordController.clear();
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Server error")));
+    }
+  }
+
+  // ---------------- ADD COLLEGE DIALOG ----------------
+
   void _showAddCollegeDialog() {
-    Future<void> create() async {
-      try {
-        final response = await http.post(
-          Uri.parse("http://10.0.2.2:8080/app/college/create"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({
-            "clgname": nameController.text,
-            "clgcode": int.parse(codeController.text),
-            "username": usernameController.text,
-            "clgpassword": passwordController.text,
-          }),
-        );
-        if (response.statusCode == 200) {
-          await fetchColleges(); // refresh list
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Server error")));
-      }
-    }
-
-    void createaction() {
-      if (_formkey.currentState!.validate()) {
-        create();
-      }
-    }
-
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Add College"),
+          title: const Text("Add College"),
+
           content: SingleChildScrollView(
             child: Form(
-              key: _formkey,
+              key: _formKey,
+
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+
                 children: [
-                  TextField(
+                  TextFormField(
                     controller: nameController,
-                    decoration: InputDecoration(labelText: "College Name"),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? "Enter college name" : null,
+                    decoration: const InputDecoration(
+                      labelText: "College Name",
+                    ),
                   ),
 
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                  TextField(
+                  TextFormField(
                     controller: codeController,
-                    decoration: InputDecoration(labelText: "College Code"),
+                    keyboardType: TextInputType.number,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? "Enter college code" : null,
+                    decoration: const InputDecoration(
+                      labelText: "College Code",
+                    ),
                   ),
 
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                  TextField(
+                  TextFormField(
                     controller: usernameController,
-                    decoration: InputDecoration(labelText: "Username"),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? "Enter username" : null,
+                    decoration: const InputDecoration(labelText: "Username"),
                   ),
 
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                  TextField(
+                  TextFormField(
                     controller: passwordController,
                     obscureText: true,
-                    decoration: InputDecoration(labelText: "Password"),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? "Enter password" : null,
+                    decoration: const InputDecoration(labelText: "Password"),
                   ),
                 ],
               ),
             ),
           ),
+
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: Text("Cancel"),
+              child: const Text("Cancel"),
             ),
 
             ElevatedButton(
-              onPressed: () {
-                createaction();
-                Navigator.pop(context);
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  await createCollege();
+
+                  if (!mounted) return;
+
+                  Navigator.pop(context);
+                }
               },
-              child: Text("Create"),
+              child: const Text("Create"),
             ),
           ],
         );
@@ -134,48 +164,74 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
     );
   }
 
+  // ---------------- INIT ----------------
+
   @override
   void initState() {
     super.initState();
     fetchColleges();
   }
 
+  // ---------------- DISPOSE ----------------
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    codeController.dispose();
+    usernameController.dispose();
+    passwordController.dispose();
+
+    super.dispose();
+  }
+
+  // ---------------- UI ----------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("College Management"),
+        title: const Text("College Management"),
         actions: [
-          IconButton(icon: Icon(Icons.add), onPressed: _showAddCollegeDialog),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _showAddCollegeDialog,
+          ),
         ],
       ),
 
       body: colleges.isEmpty
-          ? Center(child: Text("No Colleges Added"))
+          ? const Center(child: Text("No Colleges Added"))
           : ListView.builder(
-              //physics: const ClampingScrollPhysics(),
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+
               itemCount: colleges.length,
+
               itemBuilder: (context, index) {
                 final college = colleges[index];
 
                 return Card(
                   elevation: 6,
-                  margin: EdgeInsets.only(bottom: 16),
+                  margin: const EdgeInsets.only(bottom: 16),
+
                   child: Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+
                       children: [
                         Text(
                           college["name"]!,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(height: 5),
+
+                        const SizedBox(height: 5),
+
                         Text("Code: ${college["code"]}"),
+
                         Text("Username: ${college["username"]}"),
                       ],
                     ),

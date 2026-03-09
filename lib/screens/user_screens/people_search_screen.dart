@@ -2,252 +2,300 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:practice_app/screens/MentorProfileScreen.dart';
+
+import 'package:practice_app/models/user_model.dart';
+import 'package:practice_app/screens/user_screens/mentor_profile_screen.dart';
+import 'package:practice_app/screens/user_screens/staff_profile_screen.dart';
+import 'package:practice_app/screens/user_screens/student_profile_screen.dart';
 
 class PeopleSearchScreen extends StatefulWidget {
   const PeopleSearchScreen({super.key});
 
   @override
-  State<PeopleSearchScreen> createState() => _PeopleSearchScreen();
+  State<PeopleSearchScreen> createState() => _PeopleSearchScreenState();
 }
 
-class _PeopleSearchScreen extends State<PeopleSearchScreen> {
-  List<Map<String, String>> students = [];
-  List<Map<String, String>> mentors = [];
-  List<Map<String, String>> staff = [];
-  final loginuser = Hive.box("users");
-  String? get userRole => loginuser.get("role");
+class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
+  List<UserModel> students = [];
+  List<UserModel> mentors = [];
+  List<UserModel> staff = [];
+
+  final loginUser = Hive.box("users");
+
+  String get userRole => loginUser.get("role") ?? "";
+
   String selectedFilter = "ALL";
 
+  bool loading = true;
+
+  final String baseUrl = "http://10.0.2.2:8080/app";
+
   // ---------------- FETCH STUDENTS ----------------
+
   Future<void> fetchStudents() async {
-    final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/students/getall"),
-    );
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/students/getall"));
 
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
 
-      setState(() {
         students = data
             .map(
-              (e) => {
-                "name": e["name"].toString(),
+              (e) => UserModel.fromJson({
+                "id": e["id"],
+                "name": e["name"],
                 "role": "STD",
-                "username": e["username"].toString(),
-              },
+                "username": e["username"],
+              }),
             )
             .toList();
-      });
+      }
+    } catch (e) {
+      debugPrint("students error: $e");
     }
   }
 
   // ---------------- FETCH MENTORS ----------------
+
   Future<void> fetchMentors() async {
-    final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/mentor/getall"),
-    );
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/mentor/getall"));
 
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
 
-      setState(() {
         mentors = data
             .map(
-              (e) => {
-                "name": e["name"].toString(),
+              (e) => UserModel.fromJson({
+                "id": e["id"],
+                "name": e["name"],
                 "role": "MENTOR",
-                "username": e["username"].toString(),
-              },
+                "username": e["username"],
+              }),
             )
             .toList();
-      });
+      }
+    } catch (e) {
+      debugPrint("mentors error: $e");
     }
   }
 
   // ---------------- FETCH STAFF ----------------
-  Future<void> fetchStaff() async {
-    final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/staff/getall"),
-    );
 
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      print(response.body);
-      setState(() {
+  Future<void> fetchStaff() async {
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/staff/getall"));
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+
         staff = data
             .map(
-              (e) => {
-                "name": e["name"].toString(),
+              (e) => UserModel.fromJson({
+                "id": e["id"],
+                "name": e["name"],
                 "role": "STAFF",
-                "username": e["username"].toString(),
-              },
+                "username": e["username"],
+              }),
             )
             .toList();
-      });
+      }
+    } catch (e) {
+      debugPrint("staff error: $e");
     }
+  }
+
+  // ---------------- LOAD ALL ----------------
+
+  Future<void> loadAllUsers() async {
+    await Future.wait([fetchStudents(), fetchMentors(), fetchStaff()]);
+
+    if (!mounted) return;
+
+    setState(() {
+      loading = false;
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    fetchStudents();
-    fetchMentors();
-    fetchStaff();
+    loadAllUsers();
   }
+
+  // ---------------- FILTERED LIST ----------------
+
+  List<UserModel> get currentList {
+    if (selectedFilter == "STD") return students;
+
+    if (selectedFilter == "MENTOR") return mentors;
+
+    if (selectedFilter == "STAFF") return staff;
+
+    return [...students, ...mentors, ...staff];
+  }
+
+  // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
-    // ---- Merge all lists if ALL selected ----
-    List<Map<String, String>> currentList;
-
-    if (selectedFilter == "STD") {
-      currentList = students;
-    } else if (selectedFilter == "MENTOR") {
-      currentList = mentors;
-    } else if (selectedFilter == "STAFF") {
-      currentList = staff;
-    } else {
-      currentList = [...students, ...mentors, ...staff];
-    }
-
-    if (currentList.isEmpty) {
-      return Column(
-        children: [
-          // ---------------- FILTER BUTTONS ----------------
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                _buildFilterChip("ALL"),
-                _buildFilterChip("STD"),
-                _buildFilterChip("MENTOR"),
-                _buildFilterChip("STAFF"),
-              ],
-            ),
-          ),
-          const Center(child: Text("No Peoples Available")),
-        ],
-      );
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
     }
 
     return Column(
       children: [
-        // ---------------- FILTER BUTTONS ----------------
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Wrap(
-            spacing: 8,
-            children: [
-              _buildFilterChip("ALL"),
-              _buildFilterChip("STD"),
-              _buildFilterChip("MENTOR"),
-              _buildFilterChip("STAFF"),
-            ],
-          ),
-        ),
+        _buildFilterBar(),
 
-        // ---------------- GRID VIEW ----------------
         Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.75,
-            ),
-            itemCount: currentList.length,
-            itemBuilder: (context, index) {
-              final person = currentList[index];
+          child: currentList.isEmpty
+              ? const Center(child: Text("No Peoples Available"))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(12),
 
-              return InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MentorProfileScreen(
-                        name: person["name"] ?? "",
-                        username: person["username"] ?? "",
-                      ),
-                    ),
-                  );
-                },
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.75,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        const CircleAvatar(radius: 35),
 
-                        const SizedBox(height: 10),
+                  itemCount: currentList.length,
 
-                        Text(
-                          person["name"] ?? "",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                  itemBuilder: (context, index) {
+                    final person = currentList[index];
 
-                        const SizedBox(height: 4),
-
-                        Text(
-                          person["username"] ?? "",
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Text(
-                          person["role"] ?? "",
-                          style: TextStyle(
-                            color: _getRoleColor(person["role"]),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        /// CONNECT BUTTON (UNCHANGED TEXT)
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MentorProfileScreen(
-                                  name: person["name"] ?? "",
-                                  username: person["username"] ?? "",
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text("Connect"),
-                        ),
-                      ],
-                    ),
-                  ),
+                    return _buildPersonCard(person);
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
   }
 
-  // ---------------- FILTER CHIP BUILDER ----------------
+  // ---------------- FILTER BAR ----------------
+
+  Widget _buildFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+
+      child: Wrap(
+        spacing: 8,
+
+        children: [
+          _buildFilterChip("ALL"),
+          _buildFilterChip("STD"),
+          _buildFilterChip("MENTOR"),
+          _buildFilterChip("STAFF"),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- PERSON CARD ----------------
+
+  Widget _buildPersonCard(UserModel person) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+
+      onTap: () {
+        if (person.role == "MENTOR") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MentorProfileScreen(
+                id: person.id,
+                name: person.name,
+                username: person.username,
+                role: person.role,
+                isOwner: false,
+              ),
+            ),
+          );
+        } else if (person.role == "STD") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StudentProfileScreen(
+                id: person.id,
+                name: person.name,
+                username: person.username,
+                role: person.role,
+                isOwner: false,
+              ),
+            ),
+          );
+        } else if (person.role == "STAFF") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StaffProfileScreen(
+                id: person.id,
+                name: person.name,
+                username: person.username,
+                role: person.role,
+                isOwner: false,
+              ),
+            ),
+          );
+        }
+      },
+
+      child: Card(
+        elevation: 4,
+
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+
+          child: Column(
+            children: [
+              const CircleAvatar(radius: 35),
+
+              const SizedBox(height: 10),
+
+              Text(
+                person.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(person.username, style: const TextStyle(color: Colors.grey)),
+
+              const SizedBox(height: 6),
+
+              Text(
+                person.role,
+                style: TextStyle(
+                  color: _getRoleColor(person.role),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const Spacer(),
+
+              ElevatedButton(onPressed: () {}, child: const Text("Connect")),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------- FILTER CHIP ----------------
+
   Widget _buildFilterChip(String role) {
     return FilterChip(
       label: Text(role),
+
       selected: selectedFilter == role,
+
       onSelected: (_) {
         setState(() {
           selectedFilter = role;
@@ -257,14 +305,18 @@ class _PeopleSearchScreen extends State<PeopleSearchScreen> {
   }
 
   // ---------------- ROLE COLOR ----------------
-  Color _getRoleColor(String? role) {
+
+  Color _getRoleColor(String role) {
     switch (role) {
       case "STD":
         return Colors.blue;
+
       case "MENTOR":
         return Colors.green;
+
       case "STAFF":
         return Colors.orange;
+
       default:
         return Colors.grey;
     }
