@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import 'package:practice_app/services/api_config.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,8 +20,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String get userRole => users.get("role") ?? "";
   int get userId => users.get("id") ?? 0;
 
-  final String baseUrl = "http://10.0.2.2:8080/app";
-
   List<Map<String, dynamic>> questions = [];
 
   bool loading = true;
@@ -29,7 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchQuestions() async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/questions"));
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/questions"),
+      );
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -52,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           loading = false;
         });
+        print(questions);
       }
     } catch (e) {
       debugPrint("fetch error: $e");
@@ -71,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("$baseUrl/questions"),
+        Uri.parse("${ApiConfig.baseUrl}/questions"),
 
         headers: {"Content-Type": "application/json"},
 
@@ -91,7 +93,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> likeQuestion(int questionId) async {
     try {
       final response = await http.post(
-        Uri.parse("$baseUrl/questions/$questionId/like?userId=$userId"),
+        Uri.parse(
+          "${ApiConfig.baseUrl}/questions/$questionId/like?userId=$userId",
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -107,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<List<Map<String, dynamic>>> fetchReplies(int questionId) async {
     try {
       final response = await http.get(
-        Uri.parse("$baseUrl/questions/$questionId/replies"),
+        Uri.parse("${ApiConfig.baseUrl}/replies/$questionId"),
       );
 
       if (response.statusCode == 200) {
@@ -135,11 +139,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> sendReply(int questionId, String message) async {
     try {
       await http.post(
-        Uri.parse("$baseUrl/questions/$questionId/reply"),
+        Uri.parse("${ApiConfig.baseUrl}/replies"),
 
         headers: {"Content-Type": "application/json"},
 
-        body: jsonEncode({"message": message, "userId": userId}),
+        body: jsonEncode({
+          "message": message,
+          "userId": userId,
+          "questionId": questionId,
+        }),
       );
 
       fetchQuestions();

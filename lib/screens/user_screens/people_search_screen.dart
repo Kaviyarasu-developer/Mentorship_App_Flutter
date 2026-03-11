@@ -7,6 +7,7 @@ import 'package:practice_app/models/user_model.dart';
 import 'package:practice_app/screens/user_screens/mentor_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/staff_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/student_profile_screen.dart';
+import 'package:practice_app/services/api_config.dart';
 
 class PeopleSearchScreen extends StatefulWidget {
   const PeopleSearchScreen({super.key});
@@ -20,21 +21,25 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
   List<UserModel> mentors = [];
   List<UserModel> staff = [];
 
+  bool isOwner = false;
+
   final loginUser = Hive.box("users");
 
   String get userRole => loginUser.get("role") ?? "";
+
+  int get userId => loginUser.get("id") ?? 0;
 
   String selectedFilter = "ALL";
 
   bool loading = true;
 
-  final String baseUrl = "http://10.0.2.2:8080/app";
-
   // ---------------- FETCH STUDENTS ----------------
 
   Future<void> fetchStudents() async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/students/getall"));
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/account/STD/getall"),
+      );
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -59,7 +64,9 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
 
   Future<void> fetchMentors() async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/mentor/getall"));
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/account/MENTOR/getall"),
+      );
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -84,7 +91,9 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
 
   Future<void> fetchStaff() async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/staff/getall"));
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/account/STAFF/getall"),
+      );
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -199,6 +208,12 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
       borderRadius: BorderRadius.circular(12),
 
       onTap: () {
+        if (userId == person.id) {
+          isOwner = true;
+        } else {
+          isOwner = false;
+        }
+
         if (person.role == "MENTOR") {
           Navigator.push(
             context,
@@ -208,7 +223,7 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
                 name: person.name,
                 username: person.username,
                 role: person.role,
-                isOwner: false,
+                isOwner: isOwner,
               ),
             ),
           );
@@ -221,7 +236,7 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
                 name: person.name,
                 username: person.username,
                 role: person.role,
-                isOwner: false,
+                isOwner: isOwner,
               ),
             ),
           );
@@ -234,7 +249,7 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
                 name: person.name,
                 username: person.username,
                 role: person.role,
-                isOwner: false,
+                isOwner: isOwner,
               ),
             ),
           );
@@ -266,7 +281,10 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
 
               const SizedBox(height: 4),
 
-              Text(person.username, style: const TextStyle(color: Colors.grey)),
+              Text(
+                "@${person.username}",
+                style: const TextStyle(color: Colors.grey),
+              ),
 
               const SizedBox(height: 6),
 

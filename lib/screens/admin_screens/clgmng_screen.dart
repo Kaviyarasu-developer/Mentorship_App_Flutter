@@ -14,7 +14,8 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  final nameController = TextEditingController();
+  final clgnameController = TextEditingController();
+  final principalnameController = TextEditingController();
   final codeController = TextEditingController();
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
@@ -23,7 +24,7 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
 
   Future<void> fetchColleges() async {
     final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/college/getall"),
+      Uri.parse("http://10.0.2.2:8080/app/account/PRINCIPAL/getall"),
     );
 
     if (response.statusCode == 200) {
@@ -35,13 +36,14 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
         colleges = data
             .map(
               (e) => {
-                "name": e["clgName"].toString(),
-                "code": e["clgCode"].toString(),
+                "name": e["clgname"].toString(),
+                "code": e["clgcode"].toString(),
                 "username": e["username"].toString(),
               },
             )
             .toList();
       });
+      print(colleges);
     }
   }
 
@@ -50,20 +52,22 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
   Future<void> createCollege() async {
     try {
       final response = await http.post(
-        Uri.parse("http://10.0.2.2:8080/app/college/create"),
+        Uri.parse("http://10.0.2.2:8080/app/account/create"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "name": nameController.text.trim(),
-          "code": int.parse(codeController.text),
+          "clgname": clgnameController.text.trim(),
+          "name": principalnameController.text.trim(),
+          "clgcode": int.parse(codeController.text),
           "username": usernameController.text.trim(),
           "password": passwordController.text.trim(),
+          "role": "PRINCIPAL",
         }),
       );
 
       if (response.statusCode == 200) {
         await fetchColleges();
 
-        nameController.clear();
+        clgnameController.clear();
         codeController.clear();
         usernameController.clear();
         passwordController.clear();
@@ -95,11 +99,22 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
 
                 children: [
                   TextFormField(
-                    controller: nameController,
+                    controller: clgnameController,
                     validator: (v) =>
                         v == null || v.isEmpty ? "Enter college name" : null,
                     decoration: const InputDecoration(
                       labelText: "College Name",
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextFormField(
+                    controller: principalnameController,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? "Enter Principal Name" : null,
+                    decoration: const InputDecoration(
+                      labelText: "Principal Name",
                     ),
                   ),
 
@@ -176,7 +191,8 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
 
   @override
   void dispose() {
-    nameController.dispose();
+    clgnameController.dispose();
+    principalnameController.dispose();
     codeController.dispose();
     usernameController.dispose();
     passwordController.dispose();

@@ -100,7 +100,7 @@ class _MainScreen extends State<PrincepalMainScreen> {
     Future<void> createStudent() async {
       try {
         final response = await http.post(
-          Uri.parse("http://10.0.2.2:8080/app/staff/create"),
+          Uri.parse("http://10.0.2.2:8080/app/account/create"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode({
             "name": nameController.text,
@@ -108,6 +108,7 @@ class _MainScreen extends State<PrincepalMainScreen> {
             "username": usernameController.text,
             "password": passwordController.text,
             "clgcode": int.parse(clgcodeController.text),
+            "role": "STAFF",
           }),
         );
         if (response.statusCode == 200) {
@@ -246,7 +247,7 @@ class _MainScreen extends State<PrincepalMainScreen> {
 
   Future<void> fetchStaffs() async {
     final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/staff/getall"),
+      Uri.parse("http://10.0.2.2:8080/app/account/STAFF/getall"),
     );
 
     if (response.statusCode == 200) {

@@ -12,6 +12,7 @@ import 'package:practice_app/screens/user_screens/mentor_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/people_search_screen.dart';
 import 'package:practice_app/screens/user_screens/staff_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/student_profile_screen.dart';
+import 'package:practice_app/services/api_config.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -49,9 +50,8 @@ class _MainScreenState extends State<MainScreen> {
                   children: [
                     const CircleAvatar(
                       radius: 30,
-                      backgroundImage: NetworkImage(
-                        "https://i.pravatar.cc/150?img=4",
-                      ),
+                      child: Icon(Icons.person),
+                      //backgroundImage: NetworkImage(""),
                     ),
 
                     const SizedBox(height: 10),
@@ -165,8 +165,8 @@ class _MainScreenState extends State<MainScreen> {
 
     Future<void> createStudent() async {
       try {
-        await http.post(
-          Uri.parse("http://10.0.2.2:8080/app/students/create"),
+        final response = await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/account/create"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode({
             "rollno": int.parse(rollnoController.text),
@@ -175,8 +175,10 @@ class _MainScreenState extends State<MainScreen> {
             "username": usernameController.text,
             "password": passwordController.text,
             "clgcode": int.parse(clgcodeController.text),
+            "role": "STD",
           }),
         );
+        if (response.statusCode == 200) {}
       } catch (e) {
         ScaffoldMessenger.of(
           context,
@@ -290,7 +292,114 @@ class _MainScreenState extends State<MainScreen> {
   // ---------------- ADD MENTOR ----------------
 
   void _showAddMentorDialog() {
-    // same structure as student dialog (kept same logic)
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final usernameController = TextEditingController();
+    final passwordController = TextEditingController();
+    final clgcodeController = TextEditingController();
+
+    Future<void> createMentor() async {
+      try {
+        final response = await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/account/create"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "name": nameController.text,
+            "username": usernameController.text,
+            "password": passwordController.text,
+            "clgcode": int.parse(clgcodeController.text),
+            "role": "MENTOR",
+          }),
+        );
+        if (response.statusCode == 200) {}
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Server error")));
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Add Mentor"),
+
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    validator: RequiredValidator(errorText: "Enter Name").call,
+                    decoration: const InputDecoration(labelText: "Name"),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextFormField(
+                    controller: clgcodeController,
+                    validator: RequiredValidator(
+                      errorText: "Enter College Code",
+                    ).call,
+                    decoration: const InputDecoration(
+                      labelText: "College Code",
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextFormField(
+                    controller: usernameController,
+                    validator: RequiredValidator(
+                      errorText: "Enter Username",
+                    ).call,
+                    decoration: const InputDecoration(
+                      labelText: "Create Username",
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: true,
+                    validator: RequiredValidator(
+                      errorText: "Enter Password",
+                    ).call,
+                    decoration: const InputDecoration(
+                      labelText: "Create Password",
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  await createMentor();
+
+                  if (!mounted) return;
+
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Create"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // ---------------- LOGOUT ----------------
@@ -353,9 +462,10 @@ class _MainScreenState extends State<MainScreen> {
             builder: (context) => IconButton(
               icon: const CircleAvatar(
                 radius: 16,
-                backgroundImage: NetworkImage(
-                  "https://i.pravatar.cc/150?img=4",
-                ),
+                child: Icon(Icons.person),
+                // backgroundImage: NetworkImage(
+                //   "https://i.pravatar.cc/150?img=4",
+                // ),
               ),
 
               onPressed: () => _showProfileMenu(context),

@@ -19,7 +19,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreen extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-
   final _formkey = GlobalKey<FormState>();
 
   final usernameController = TextEditingController();
@@ -34,11 +33,12 @@ class _LoginScreen extends State<LoginScreen>
   void initState() {
     super.initState();
 
-    _controller =
-        AnimationController(vsync: this, duration: Duration(seconds: 1));
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 1),
+    );
 
-    _fadeAnimation =
-        CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
 
     _controller.forward();
   }
@@ -52,20 +52,17 @@ class _LoginScreen extends State<LoginScreen>
   }
 
   Future<void> login() async {
-
     setState(() {
       isLoading = true;
     });
 
     try {
-
       final data = await AuthService.login(
         usernameController.text.trim(),
         passwordController.text.trim(),
       );
 
       if (data != null) {
-
         final box = Hive.box("users");
 
         await box.put("id", data["id"]);
@@ -76,40 +73,30 @@ class _LoginScreen extends State<LoginScreen>
         String role = data["role"];
 
         if (role == "ADMIN") {
-
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => AdminpageScreen()),
           );
-
         } else if (role == "PRINCIPAL") {
-
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => PrincepalMainScreen()),
           );
-
         } else {
-
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => MainScreen()),
           );
         }
-
       } else {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Invalid username or password")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Invalid username or password")));
       }
-
     } catch (e) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Server connection error")),
-      );
-
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Server connection error")));
     }
 
     setState(() {
@@ -125,7 +112,6 @@ class _LoginScreen extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-
     double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
@@ -156,10 +142,7 @@ class _LoginScreen extends State<LoginScreen>
                       mainAxisSize: MainAxisSize.min,
 
                       children: [
-
-                        Icon(Icons.school,
-                            size: 70,
-                            color: Colors.indigo),
+                        Icon(Icons.school, size: 70, color: Colors.indigo),
 
                         SizedBox(height: 10),
 
@@ -177,14 +160,13 @@ class _LoginScreen extends State<LoginScreen>
                         TextFormField(
                           controller: usernameController,
                           validator: RequiredValidator(
-                                  errorText: "Enter Username")
-                              .call,
+                            errorText: "Enter Username",
+                          ).call,
                           decoration: InputDecoration(
                             labelText: "Username",
                             prefixIcon: Icon(Icons.person),
                             border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
@@ -195,14 +177,13 @@ class _LoginScreen extends State<LoginScreen>
                           controller: passwordController,
                           obscureText: true,
                           validator: RequiredValidator(
-                                  errorText: "Enter Password")
-                              .call,
+                            errorText: "Enter Password",
+                          ).call,
                           decoration: InputDecoration(
                             labelText: "Password",
                             prefixIcon: Icon(Icons.lock),
                             border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
@@ -219,14 +200,12 @@ class _LoginScreen extends State<LoginScreen>
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.indigo[200],
                               shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
 
                             child: isLoading
-                                ? CircularProgressIndicator(
-                                    color: Colors.white)
+                                ? CircularProgressIndicator(color: Colors.white)
                                 : Text(
                                     "Login",
                                     style: TextStyle(
