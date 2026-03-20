@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:practice_app/services/api_config.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,11 +14,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController questionController = TextEditingController();
 
-  final users = Hive.box("users");
-
-  String get userName => users.get("username") ?? "";
-  String get userRole => users.get("role") ?? "";
-  int get userId => users.get("id") ?? 0;
+  String get userName => SessionService.username ?? "";
+  String get userRole => SessionService.role ?? "";
+  int get userId => SessionService.userId ?? 0;
 
   List<Map<String, dynamic>> questions = [];
 
@@ -29,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchQuestions() async {
     try {
       final response = await http.get(
-        Uri.parse("${ApiConfig.baseUrl}/questions"),
+        Uri.parse("${ApiConfig.baseUrl}/questions?userId=$userId"),
       );
 
       if (response.statusCode == 200) {
@@ -41,19 +39,22 @@ class _HomeScreenState extends State<HomeScreen> {
           questions = data
               .map(
                 (e) => {
+                  "userId": e["userId"],
                   "id": e["id"],
                   "user": e["username"],
                   "role": e["role"],
                   "question": e["message"],
                   "likes": e["likesCount"],
+                  "isLiked": e["isLiked"],
                   "replies": e["replyCount"],
                 },
               )
               .toList();
 
+          print(questions);
+
           loading = false;
         });
-        print(questions);
       }
     } catch (e) {
       debugPrint("fetch error: $e");
@@ -88,7 +89,48 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ---------------- LIKE QUESTION ----------------
+  //-----------------  DELETE QUESTION  -----------------------
+
+  Future<void> deleteQuestion(int questionId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse("${ApiConfig.baseUrl}/questions/$questionId"),
+      );
+
+      if (response.statusCode == 200) {
+        fetchQuestions();
+      }
+    } catch (e) {}
+  }
+
+  /// DELETE CONFIRMATION
+  void showDeleteDialog(int questionId) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Delete Question"),
+          content: const Text("Are you sure you want to delete this Question?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                deleteQuestion(questionId);
+                Navigator.pop(context);
+              },
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ----------------  TOGGLE LIKE QUESTION ----------------
 
   Future<void> likeQuestion(int questionId) async {
     try {
@@ -111,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<List<Map<String, dynamic>>> fetchReplies(int questionId) async {
     try {
       final response = await http.get(
-        Uri.parse("${ApiConfig.baseUrl}/replies/$questionId"),
+        Uri.parse("${ApiConfig.baseUrl}/replies/$questionId?userId=$userId"),
       );
 
       if (response.statusCode == 200) {
@@ -120,9 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
         return data
             .map(
               (e) => {
+                "id": e["id"] ?? 0,
+                "userId": e["userId"] ?? 0,
                 "user": e["username"],
                 "role": e["role"],
                 "message": e["message"],
+                "isLiked": e["isLiked"] ?? false,
+                "likes": e["likesCount"] ?? 0,
               },
             )
             .toList();
@@ -140,25 +186,58 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await http.post(
         Uri.parse("${ApiConfig.baseUrl}/replies"),
-
         headers: {"Content-Type": "application/json"},
-
         body: jsonEncode({
           "message": message,
           "userId": userId,
           "questionId": questionId,
         }),
       );
-
-      fetchQuestions();
     } catch (e) {
       debugPrint("reply send error: $e");
     }
   }
 
+  //----------------- DELETE REPLY ----------------------
+
+  Future<void> deleteReply(
+    int replyId,
+    int questionId,
+    Function setStateModal,
+    List replies,
+  ) async {
+    try {
+      final response = await http.delete(
+        Uri.parse("${ApiConfig.baseUrl}/replies/$replyId"),
+      );
+
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        // remove instantly (no reload)
+        setStateModal(() {
+          replies.removeWhere((r) => r["id"] == replyId);
+        });
+        fetchQuestions();
+      }
+    } catch (e) {
+      debugPrint("delete reply error: $e");
+    }
+  }
+
+  //----------------- LIKE REPLY ----------------------
+  Future<void> likeReply(int replyId) async {
+    try {
+      await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/replies/$replyId/like?userId=$userId"),
+      );
+    } catch (e) {
+      debugPrint("like reply error: $e");
+    }
+  }
+
   // ---------------- OPEN REPLY PANEL ----------------
 
-  void openReplies(int questionId) async {
+  void openReplies(int questionId, Function refreshHome) async {
     List<Map<String, dynamic>> replies = await fetchReplies(questionId);
 
     TextEditingController replyController = TextEditingController();
@@ -166,118 +245,259 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateModal) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
 
-              child: SizedBox(
-                height: 500,
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
 
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      "Replies",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  /// DRAG HANDLE
+                  Container(
+                    height: 4,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                  ),
 
-                    const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                    Expanded(
-                      child: replies.isEmpty
-                          ? const Center(child: Text("No replies yet"))
-                          : ListView.builder(
-                              itemCount: replies.length,
+                  const Text(
+                    "Replies",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
 
-                              itemBuilder: (context, index) {
-                                final r = replies[index];
+                  const SizedBox(height: 10),
 
-                                return ListTile(
-                                  leading: const CircleAvatar(
-                                    child: Icon(Icons.person),
+                  /// 🔥 CHAT STYLE LIST
+                  Expanded(
+                    child: replies.isEmpty
+                        ? const Center(child: Text("No replies yet"))
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: replies.length,
+                            itemBuilder: (context, index) {
+                              final r = replies[index];
+                              bool isMe = (r["userId"] ?? -1) == userId;
+
+                              return Align(
+                                alignment: isMe
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+
+                                child: Dismissible(
+                                  key: ValueKey(r["id"]),
+
+                                  direction: isMe
+                                      ? DismissDirection.endToStart
+                                      : DismissDirection.none,
+
+                                  background: Container(
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 20),
+                                    color: Colors.red,
+                                    child: const Icon(
+                                      Icons.delete,
+                                      color: Colors.white,
+                                    ),
                                   ),
 
-                                  title: Row(
-                                    children: [
-                                      Text(
-                                        r["user"],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                  onDismissed: (_) {
+                                    deleteReply(
+                                      r["id"],
+                                      questionId,
+                                      setStateModal,
+                                      replies,
+                                    );
+                                  },
+
+                                  child: GestureDetector(
+                                    onDoubleTap: () async {
+                                      await likeReply(r["id"]);
+
+                                      // 🔥 REFRESH FROM BACKEND (REAL DATA)
+                                      List<Map<String, dynamic>>
+                                      updatedReplies = await fetchReplies(
+                                        questionId,
+                                      );
+
+                                      setStateModal(() {
+                                        replies = updatedReplies;
+                                      });
+                                    },
+
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      margin: const EdgeInsets.symmetric(
+                                        vertical: 6,
+                                      ),
+                                      padding: const EdgeInsets.all(12),
+
+                                      constraints: BoxConstraints(
+                                        maxWidth:
+                                            MediaQuery.of(context).size.width *
+                                            0.7,
                                       ),
 
-                                      const SizedBox(width: 6),
+                                      decoration: BoxDecoration(
+                                        color: isMe
+                                            ? Colors.indigo
+                                            : Colors.grey[200],
 
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-
-                                        decoration: BoxDecoration(
-                                          color: Colors.indigo.shade100,
-                                          borderRadius: BorderRadius.circular(
-                                            5,
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: const Radius.circular(16),
+                                          topRight: const Radius.circular(16),
+                                          bottomLeft: Radius.circular(
+                                            isMe ? 16 : 0,
+                                          ),
+                                          bottomRight: Radius.circular(
+                                            isMe ? 0 : 16,
                                           ),
                                         ),
-
-                                        child: Text(
-                                          r["role"],
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
                                       ),
-                                    ],
-                                  ),
 
-                                  subtitle: Text(r["message"]),
-                                );
-                              },
-                            ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          /// NAME + ROLE
+                                          Text(
+                                            isMe
+                                                ? "You (${SessionService.role})"
+                                                : "${r["user"]} (${r["role"] ?? "USER"})",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: isMe
+                                                  ? Colors.white70
+                                                  : Colors.black54,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 4),
+
+                                          /// MESSAGE
+                                          Text(
+                                            r["message"],
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              color: isMe
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 6),
+
+                                          /// ❤️ LIKE ROW
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                (r["isLiked"] ?? false)
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                size: 16,
+                                                color: Colors.red,
+                                              ),
+
+                                              const SizedBox(width: 4),
+
+                                              Text(
+                                                "${r["likes"]}",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isMe
+                                                      ? Colors.white70
+                                                      : Colors.black54,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+
+                  /// 🔥 INPUT FIELD (WHATSAPP STYLE)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(blurRadius: 5, color: Colors.black12),
+                      ],
                     ),
 
-                    Row(
+                    child: Row(
                       children: [
+                        /// TEXT FIELD
                         Expanded(
                           child: TextField(
                             controller: replyController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               hintText: "Write a reply...",
+                              filled: true,
+                              fillColor: Colors.grey[200],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(25),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                             ),
                           ),
                         ),
 
-                        IconButton(
-                          icon: const Icon(Icons.send),
+                        const SizedBox(width: 8),
 
-                          onPressed: () async {
-                            if (replyController.text.trim().isEmpty) return;
+                        /// SEND BUTTON
+                        CircleAvatar(
+                          backgroundColor: Colors.indigo,
+                          child: IconButton(
+                            icon: const Icon(Icons.send, color: Colors.white),
+                            onPressed: () async {
+                              if (replyController.text.trim().isEmpty) return;
 
-                            await sendReply(questionId, replyController.text);
+                              await sendReply(questionId, replyController.text);
 
-                            replies.add({
-                              "user": userName,
-                              "role": userRole,
-                              "message": replyController.text,
-                            });
+                              List<Map<String, dynamic>> updatedReplies =
+                                  await fetchReplies(questionId);
 
-                            replyController.clear();
+                              setStateModal(() {
+                                replies = updatedReplies;
+                              });
+                              refreshHome();
 
-                            setStateModal(() {});
-                          },
+                              replyController.clear();
+                            },
+                          ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -377,8 +597,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             Column(
                               children: [
                                 IconButton(
-                                  icon: const Icon(
-                                    Icons.favorite_border,
+                                  icon: Icon(
+                                    q["isLiked"]
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
                                     color: Colors.red,
                                   ),
                                   onPressed: () {
@@ -405,7 +627,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             TextButton.icon(
                               onPressed: () {
-                                openReplies(q["id"]);
+                                openReplies(q["id"], fetchQuestions);
                               },
 
                               icon: const Icon(Icons.chat_bubble_outline),
@@ -422,6 +644,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
                               label: const Text("Report"),
                             ),
+
+                            const SizedBox(width: 75),
+
+                            /// THREE DOT MENU
+                            if (q["userId"] == userId)
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) {
+                                  if (value == "delete") {
+                                    showDeleteDialog(q["id"]);
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                    value: "delete",
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, color: Colors.red),
+                                        SizedBox(width: 10),
+                                        Text("Delete Question"),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ],

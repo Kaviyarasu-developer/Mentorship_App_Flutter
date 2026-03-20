@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:practice_app/screens/user_screens/following_screen.dart';
+import 'package:practice_app/screens/user_screens/profile_screens/following_screen.dart';
 import 'package:practice_app/services/api_config.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class StudentProfileScreen extends StatefulWidget {
   final int id;
@@ -39,31 +39,30 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   String aboutText =
       "This mentor helps students with coding, projects and career guidance.";
 
-  final users = Hive.box("users");
-
-  int get userId => users.get("id");
+  int get userId => SessionService.userId ?? 0;
 
   Future<void> followUser() async {
-    final response = await http.post(
+    await http.post(
       Uri.parse("${ApiConfig.baseUrl}/follow/${widget.id}?followerId=$userId"),
     );
 
-    if (response.statusCode == 200) {
-      setState(() {
-        isFollowing = true;
-      });
-    }
+    setState(() {
+      isFollowing = true;
+    });
+
+    countFollowers(); // call separately
   }
 
   Future<void> unfollowUser() async {
-    final response = await http.delete(
+    await http.delete(
       Uri.parse("${ApiConfig.baseUrl}/follow/${widget.id}?followerId=$userId"),
     );
-    if (response.statusCode == 200) {
-      setState(() {
-        isFollowing = false;
-      });
-    }
+
+    setState(() {
+      isFollowing = false;
+    });
+
+    countFollowers();
   }
 
   Future<void> isFollowingUser() async {
@@ -72,9 +71,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
         "${ApiConfig.baseUrl}/follow/isFollowing?followerId=$userId&followingId=${widget.id}",
       ),
     );
+
     if (response.statusCode == 200) {
       setState(() {
-        isFollowing = bool.parse(response.body);
+        isFollowing = response.body == "true";
       });
     }
   }
@@ -83,18 +83,13 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
     final response = await http.get(
       Uri.parse("${ApiConfig.baseUrl}/follow/followers/${widget.id}"),
     );
+
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
-      data
-          .map(
-            (e) => {
-              "user": e["username"],
-              "role": e["role"],
-              "message": e["message"],
-            },
-          )
-          .toList();
-      followersCount = data.length;
+
+      setState(() {
+        followersCount = data.length;
+      });
     }
   }
 

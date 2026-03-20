@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:practice_app/screens/anouncements_screen.dart';
@@ -13,6 +12,7 @@ import 'package:practice_app/screens/user_screens/people_search_screen.dart';
 import 'package:practice_app/screens/user_screens/staff_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/student_profile_screen.dart';
 import 'package:practice_app/services/api_config.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -24,12 +24,10 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  final _userLogin = Hive.box("users");
-
-  int get _id => _userLogin.get("id") ?? 0;
-  String get _role => _userLogin.get("role") ?? "";
-  String get _username => _userLogin.get("username") ?? "";
-  String get _name => _userLogin.get("name") ?? "";
+  final int? _id = SessionService.userId;
+  final String? _role = SessionService.role;
+  final String? _username = SessionService.username;
+  final String? _name = SessionService.name;
 
   // ---------------- PROFILE MENU ----------------
 
@@ -57,18 +55,21 @@ class _MainScreenState extends State<MainScreen> {
                     const SizedBox(height: 10),
 
                     Text(
-                      _username,
+                      _username ?? "",
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
 
-                    Text(_role, style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      _role ?? "",
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
 
               const Divider(),
 
-              if (_role != "STD") ...[
+              if (_role == "STAFF") ...[
                 ListTile(
                   leading: const Icon(Icons.add),
                   title: const Text("Add Student"),
@@ -114,10 +115,10 @@ class _MainScreenState extends State<MainScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => StudentProfileScreen(
-            id: _id,
-            name: _name,
-            username: _username,
-            role: _role,
+            id: _id ?? 0,
+            name: _name ?? "",
+            username: _username ?? "",
+            role: _role ?? "",
             isOwner: true,
           ),
         ),
@@ -127,10 +128,10 @@ class _MainScreenState extends State<MainScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => MentorProfileScreen(
-            id: _id,
-            name: _name,
-            username: _username,
-            role: _role,
+            id: _id ?? 0,
+            name: _name ?? "",
+            username: _username ?? "",
+            role: _role ?? "",
             isOwner: true,
           ),
         ),
@@ -140,10 +141,10 @@ class _MainScreenState extends State<MainScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => StaffProfileScreen(
-            id: _id,
-            name: _name,
-            username: _username,
-            role: _role,
+            id: _id ?? 0,
+            name: _name ?? "",
+            username: _username ?? "",
+            role: _role ?? "",
             isOwner: true,
           ),
         ),
@@ -437,6 +438,7 @@ class _MainScreenState extends State<MainScreen> {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
+    SessionService.logout();
   }
 
   // ---------------- PAGES ----------------

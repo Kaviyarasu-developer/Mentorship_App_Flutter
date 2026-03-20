@@ -1,10 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:practice_app/screens/user_screens/following_screen.dart';
+import 'package:practice_app/screens/user_screens/profile_screens/community_tab_screen.dart';
+import 'package:practice_app/screens/user_screens/profile_screens/following_screen.dart';
 import 'package:practice_app/services/api_config.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class MentorProfileScreen extends StatefulWidget {
   final int id;
@@ -39,9 +40,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen>
 
   bool isFollowing = false;
 
-  final users = Hive.box("users");
-
-  int get userId => users.get("id");
+  int get userId => SessionService.userId ?? 0;
 
   Future<void> followUser() async {
     await http.post(
@@ -51,6 +50,8 @@ class _MentorProfileScreenState extends State<MentorProfileScreen>
     setState(() {
       isFollowing = true;
     });
+
+    countFollowers(); // call separately
   }
 
   Future<void> unfollowUser() async {
@@ -61,6 +62,8 @@ class _MentorProfileScreenState extends State<MentorProfileScreen>
     setState(() {
       isFollowing = false;
     });
+
+    countFollowers();
   }
 
   Future<void> isFollowingUSer() async {
@@ -69,9 +72,10 @@ class _MentorProfileScreenState extends State<MentorProfileScreen>
         "${ApiConfig.baseUrl}/follow/isFollowing?followerId=$userId&followingId=${widget.id}",
       ),
     );
+
     if (response.statusCode == 200) {
       setState(() {
-        isFollowing = bool.parse(response.body);
+        isFollowing = response.body == "true";
       });
     }
   }
@@ -80,18 +84,13 @@ class _MentorProfileScreenState extends State<MentorProfileScreen>
     final response = await http.get(
       Uri.parse("${ApiConfig.baseUrl}/follow/followers/${widget.id}"),
     );
+
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
-      data
-          .map(
-            (e) => {
-              "user": e["username"],
-              "role": e["role"],
-              "message": e["message"],
-            },
-          )
-          .toList();
-      followersCount = data.length;
+
+      setState(() {
+        followersCount = data.length;
+      });
     }
   }
 
@@ -258,7 +257,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen>
               controller: tabController,
 
               children: [
-                const Center(child: Text("No Communities")),
+                CommunityTab(isOwner: widget.isOwner, mentorId: widget.id),
 
                 const Center(child: Text("No Classes")),
 

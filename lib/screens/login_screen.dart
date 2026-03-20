@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:hive/hive.dart';
+import 'package:practice_app/models/user_model.dart';
 import 'package:practice_app/screens/admin_screens/admin_main_screen.dart';
 import 'package:practice_app/screens/principal_screens/princepal_main_screen.dart';
 import 'package:practice_app/screens/user_screens/main_screen.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 import '../services/auth_service.dart';
-
-//import '../admin_screens/adminpage_screen.dart';
-//import '../principal_screens/princepal_main_screen.dart';
-//import '../user_screens/main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -52,57 +49,54 @@ class _LoginScreen extends State<LoginScreen>
   }
 
   Future<void> login() async {
-    setState(() {
-      isLoading = true;
-    });
+  setState(() {
+    isLoading = true;
+  });
 
-    try {
-      final data = await AuthService.login(
-        usernameController.text.trim(),
-        passwordController.text.trim(),
-      );
+  try {
+    final data = await AuthService.login(
+      usernameController.text.trim(),
+      passwordController.text.trim(),
+    );
 
-      if (data != null) {
-        final box = Hive.box("users");
+    if (data != null) {
+      final user = UserModel.fromJson(data);
 
-        await box.put("id", data["id"]);
-        await box.put("role", data["role"]);
-        await box.put("name", data["name"]);
-        await box.put("username", data["username"]);
+      // ✅ SAVE USING SESSION SERVICE
+      await SessionService.saveUser(user);
 
-        String role = data["role"];
-
-        if (role == "ADMIN") {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => AdminpageScreen()),
-          );
-        } else if (role == "PRINCIPAL") {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => PrincepalMainScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => MainScreen()),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(
+      // ✅ NAVIGATION BASED ON ROLE
+      if (user.role == "ADMIN") {
+        Navigator.pushReplacement(
           context,
-        ).showSnackBar(SnackBar(content: Text("Invalid username or password")));
+          MaterialPageRoute(builder: (_) => AdminpageScreen()),
+        );
+      } else if (user.role == "PRINCIPAL") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PrincepalMainScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => MainScreen()),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Server connection error")));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid username or password")),
+      );
     }
-
-    setState(() {
-      isLoading = false;
-    });
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Server connection error")),
+    );
   }
+
+  setState(() {
+    isLoading = false;
+  });
+}
 
   void _submit() {
     if (_formkey.currentState!.validate()) {

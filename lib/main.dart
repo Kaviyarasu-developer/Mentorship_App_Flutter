@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:practice_app/models/user_model.dart';
 import 'package:practice_app/screens/login_screen.dart';
 
 void main() async {
@@ -7,8 +8,11 @@ void main() async {
 
   await Hive.initFlutter();
 
-  await Hive.openBox("users");
-  runApp(MyApp());
+  Hive.registerAdapter(UserModelAdapter()); // 🔥 important
+
+  await Hive.openBox<UserModel>("users");
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

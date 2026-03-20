@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:practice_app/models/user_model.dart';
@@ -8,6 +7,7 @@ import 'package:practice_app/screens/user_screens/mentor_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/staff_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/student_profile_screen.dart';
 import 'package:practice_app/services/api_config.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class PeopleSearchScreen extends StatefulWidget {
   const PeopleSearchScreen({super.key});
@@ -23,11 +23,9 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
 
   bool isOwner = false;
 
-  final loginUser = Hive.box("users");
+  String get userRole => SessionService.role ?? "";
 
-  String get userRole => loginUser.get("role") ?? "";
-
-  int get userId => loginUser.get("id") ?? 0;
+  int get userId => SessionService.userId ?? 0;
 
   String selectedFilter = "ALL";
 
