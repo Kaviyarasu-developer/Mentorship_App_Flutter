@@ -264,7 +264,12 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
 
           child: Column(
             children: [
-              const CircleAvatar(radius: 35),
+              const CircleAvatar(
+                radius: 35,
+                foregroundImage: AssetImage(
+                  "assets/images/profile_placeholder_image.png",
+                ),
+              ),
 
               const SizedBox(height: 10),
 

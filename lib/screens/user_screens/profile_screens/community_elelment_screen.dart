@@ -32,12 +32,12 @@ class _CommunityElementScreenState extends State<CommunityElementScreen>
           /// HEADER IMAGE (1/4 SCREEN)
           Stack(
             children: [
-              Image.network(
-                widget.community.imageUrl,
-                height: MediaQuery.of(context).size.height * 0.25,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              // Image.network(
+              //   widget.community.imageUrl,
+              //   height: MediaQuery.of(context).size.height * 0.25,
+              //   width: double.infinity,
+              //   fit: BoxFit.cover,
+              // ),
 
               /// GRADIENT
               Container(

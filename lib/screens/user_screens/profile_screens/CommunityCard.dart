@@ -20,90 +20,114 @@ class CommunityCard extends StatefulWidget {
 }
 
 class _CommunityCardState extends State<CommunityCard> {
-  bool isJoined = false;
+  late bool isJoined;
+  bool isLoading = false;
 
-  //--------------- JOIN COMMUNITY ----------------------------------------------
-  Future<void> joinCommunity(BuildContext context) async {
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔥 INITIAL STATE FROM BACKEND
+    isJoined = widget.community.isjoined;
+    print(isJoined);
+  }
+
+  // 🔥---------------- TOGGLE JOIN / LEAVE ------------------------
+  Future<void> toggleJoin() async {
     try {
-      final studentId = SessionService.userId; // 🔥 get logged-in user
+      final userId = SessionService.userId;
 
-      if (studentId == null) {
+      if (userId == null) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("User not logged in")));
         return;
       }
 
-      final response = await http.post(
-        Uri.parse(
-          "${ApiConfig.baseUrl}/community/${widget.community.id}/join?studentId=$studentId",
-        ),
-      );
+      setState(() {
+        isLoading = true;
+      });
+
+      final url = isJoined
+          ? "${ApiConfig.baseUrl}/community/${widget.community.id}/leave?userId=$userId"
+          : "${ApiConfig.baseUrl}/community/${widget.community.id}/join?userId=$userId";
+
+      final response = isJoined
+          ? await http.delete(Uri.parse(url))
+          : await http.post(Uri.parse(url));
 
       if (response.statusCode == 200) {
         setState(() {
-          isJoined = true; // 🔥 UI updates
+          isJoined = !isJoined;
+          // 🔥 UPDATE MEMBERS COUNT INSTANTLY
+          widget.community.members =
+              (widget.community.members ?? 0) + (isJoined ? 1 : -1);
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Joined successfully")));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isJoined ? "Joined successfully" : "Left community"),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Failed to join")));
+        ).showSnackBar(const SnackBar(content: Text("Action failed")));
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Server error")));
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
-  /// DELETE COMMUNITY
-  Future<void> deleteCommunity(BuildContext context) async {
-    final response = await http.delete(
-      Uri.parse("${ApiConfig.baseUrl}/community/delete/${widget.community.id}"),
-    );
+  // 🔥 SAFE IMAGE BUILDER
+  Widget buildBannerImage() {
+    final url = widget.community.imageUrl ?? "";
 
-    if (response.statusCode == 200) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Community deleted")));
+    if (url.isEmpty || url == "null" || !url.startsWith("http")) {
+      return Container(
+        height: 180,
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(Icons.groups, size: 50, color: Colors.grey),
+        ),
+      );
     }
-  }
 
-  /// DELETE CONFIRMATION
-  void showDeleteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) {
-        return AlertDialog(
-          title: const Text("Delete Community"),
-          content: const Text(
-            "Are you sure you want to delete this community?",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                deleteCommunity(context);
-              },
-              child: const Text("Delete"),
-            ),
-          ],
+    return Image.network(
+      url,
+      height: 180,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: 180,
+          color: Colors.grey[300],
+          child: const Icon(Icons.groups, size: 50, color: Colors.grey),
         );
       },
     );
   }
 
+  // 🔥 PROFILE IMAGE SAFE
+  ImageProvider getProfileImage() {
+    final url = widget.community.profileImage ?? "";
+
+    if (url.isEmpty || url == "null" || !url.startsWith("http")) {
+      return const AssetImage("assets/images/profile_placeholder_image.png");
+    }
+
+    return NetworkImage(url);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
@@ -112,134 +136,153 @@ class _CommunityCardState extends State<CommunityCard> {
           ),
         );
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 10,
+              color: Colors.black12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// IMAGE BANNER
+            /// 🔥 BANNER + GRADIENT
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
+                    top: Radius.circular(16),
                   ),
-                  child: Image.network(
-                    widget.community.imageUrl,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                  child: buildBannerImage(),
+                ),
+
+                Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(0.5),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
                   ),
                 ),
 
-                /// MEMBERS COUNT
                 Positioned(
-                  top: 10,
+                  bottom: 10,
                   right: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 10,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      "${widget.community.members} members",
+                      "${widget.community.members ?? 0} members",
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
-
-                /// EDIT BUTTON (MENTOR ONLY)
-                if (widget.isOwner)
-                  Positioned(
-                    bottom: 10,
-                    right: 10,
-                    child: IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.white),
-                      onPressed: () {},
-                    ),
-                  ),
               ],
             ),
 
-            /// COMMUNITY INFO
+            /// 🔥 CONTENT
             Padding(
               padding: const EdgeInsets.all(12),
+
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  /// PROFILE IMAGE
-                  CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      widget.community.profileImage,
-                    ),
-                  ),
+                  CircleAvatar(radius: 28, backgroundImage: getProfileImage()),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
 
-                  /// NAME + USERNAME
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           widget.community.name,
-                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
                           ),
                         ),
 
+                        const SizedBox(height: 4),
+
                         Text(
-                          "@${widget.community.username}",
-                          style: const TextStyle(color: Colors.grey),
+                          "@${widget.community.username ?? "unknown"}",
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          widget.community.field ?? "",
+                          style: const TextStyle(
+                            color: Colors.indigo,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  /// THREE DOT MENU (MENTOR)
-                  if (widget.isOwner)
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert),
-                      onSelected: (value) {
-                        if (value == "delete") {
-                          showDeleteDialog(context);
-                        }
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: "delete",
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, color: Colors.red),
-                              SizedBox(width: 10),
-                              Text("Delete Community"),
-                            ],
+                  widget.isOwner
+                      ? PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (value) {},
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(value: "edit", child: Text("Edit")),
+                            PopupMenuItem(
+                              value: "delete",
+                              child: Text("Delete"),
+                            ),
+                          ],
+                        )
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isJoined
+                                ? Colors.grey
+                                : Colors.indigo,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
+                          onPressed: isLoading ? null : toggleJoin,
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(isJoined ? "Joined" : "Join"),
                         ),
-                      ],
-                    ),
-
-                  /// JOIN BUTTON (USERS)
-                  if (!widget.isOwner)
-                    ElevatedButton(
-                      onPressed: isJoined
-                          ? null
-                          : () async {
-                              joinCommunity(context);
-                              setState(() {
-                                isJoined = true;
-                              });
-                            },
-                      child: Text(isJoined ? "Joined" : "Join"),
-                    ),
                 ],
               ),
             ),

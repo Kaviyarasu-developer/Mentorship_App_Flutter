@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:practice_app/models/community_model.dart';
-import 'package:practice_app/screens/user_screens/community_screen.dart';
+import 'package:practice_app/screens/user_screens/profile_screens/CommunityCard.dart';
 import 'package:practice_app/services/api_config.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class CommunityTab extends StatefulWidget {
   final bool isOwner;
@@ -30,7 +31,7 @@ class _CommunityTabState extends State<CommunityTab> {
     try {
       final response = await http.get(
         Uri.parse(
-          "${ApiConfig.baseUrl}/community/mentor?mentorId=${widget.mentorId}",
+          "${ApiConfig.baseUrl}/community/mentor?mentorId=${widget.mentorId}&userId=${SessionService.userId}",
         ),
       );
 
@@ -41,6 +42,7 @@ class _CommunityTabState extends State<CommunityTab> {
           communities = data.map((e) => CommunityModel.fromJson(e)).toList();
           isLoading = false;
         });
+        print(communities[0].isjoined);
       }
     } catch (e) {
       print("community fetch error: $e");
@@ -221,9 +223,58 @@ class _CommunityTabState extends State<CommunityTab> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    /// 🔥 EMPTY STATE
+    if (communities.isEmpty) {
+      return Column(
+        children: [
+          /// ADD BUTTON (ONLY OWNER)
+          if (widget.isOwner)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: InkWell(
+                onTap: () {
+                  openCreateCommunityPanel(context);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(
+                      Icons.add_circle_outline,
+                      size: 20,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      "Add Community",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          const Spacer(),
+
+          const Center(
+            child: Text(
+              "No Communities",
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ),
+
+          const Spacer(),
+        ],
+      );
+    }
+
+    /// 🔥 NORMAL LIST
     return Column(
       children: [
-        /// ADD COMMUNITY BUTTON (TOP)
+        /// ADD BUTTON (TOP)
         if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -235,9 +286,7 @@ class _CommunityTabState extends State<CommunityTab> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
                   Icon(Icons.add_circle_outline, size: 20, color: Colors.grey),
-
                   SizedBox(width: 8),
-
                   Text(
                     "Add Community",
                     style: TextStyle(
