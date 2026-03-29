@@ -15,7 +15,9 @@ class CommunityScreen extends StatefulWidget {
 }
 
 class _CommunityScreen extends State<CommunityScreen> {
-  List<CommunityModel> communities = [];
+  String selectedFilter = "ALL";
+  List<CommunityModel> allCommunities = [];
+  List<CommunityModel> joinedCommunities = [];
 
   bool isLoading = true;
 
@@ -29,11 +31,10 @@ class _CommunityScreen extends State<CommunityScreen> {
       );
 
       if (response.statusCode == 200) {
-        print(response.statusCode);
         final List data = jsonDecode(response.body);
 
         setState(() {
-          communities = data.map((e) => CommunityModel.fromJson(e)).toList();
+          allCommunities = data.map((e) => CommunityModel.fromJson(e)).toList();
           isLoading = false;
         });
       }
@@ -42,32 +43,115 @@ class _CommunityScreen extends State<CommunityScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    fetchCommunities();
+  Future<void> fetchJoinedCommunites() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          "${ApiConfig.baseUrl}/community/joined?userId=${SessionService.userId}",
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+
+        setState(() {
+          joinedCommunities = data
+              .map((e) => CommunityModel.fromJson(e))
+              .toList();
+          isLoading = false;
+        });
+      }
+    } catch (e) {}
+  }
+
+  // -------------------------------- FILTERED LIST ----------------------------
+  List<CommunityModel> get currentList {
+    return selectedFilter == "Joined" ? joinedCommunities : allCommunities;
+  }
+
+  // ------------------------ FILTER BAR ---------------------------------------
+  Widget _buildFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+
+      child: Wrap(
+        spacing: 8,
+
+        children: [_buildFilterChip("ALL"), _buildFilterChip("Joined")],
+      ),
+    );
+  }
+
+  // ------------------------- FILTER CHIP -------------------------------------
+  Widget _buildFilterChip(String role) {
+    return FilterChip(
+      label: Text(role),
+
+      selected: selectedFilter == role,
+
+      onSelected: (_) async {
+        setState(() {
+          selectedFilter = role;
+          isLoading = true;
+        });
+
+        if (role == "Joined") {
+          await fetchJoinedCommunites();
+        } else {
+          await fetchCommunities();
+        }
+
+        if (!mounted) return;
+
+        setState(() {
+          isLoading = false;
+        });
+      },
+    );
+  }
+
+  // -------------------------------- LOAD ALL ---------------------------------
+  Future<void> fetchAllCommunities() async {
+    await Future.wait([fetchCommunities(), fetchJoinedCommunites()]);
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override
-  Widget build(BuildContext build) {
+  void initState() {
+    super.initState();
+    fetchAllCommunities();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final list = currentList; // ✅ use local variable
+
     return Column(
       children: [
-        /// COMMUNITY LIST
+        _buildFilterBar(),
+
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: communities.length,
-            itemBuilder: (context, index) {
-              return CommunityCard(
-                community: communities[index],
-                isOwner: false,
-              );
-            },
-          ),
+          child: list.isEmpty
+              ? const Center(child: Text("No Communities"))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    return CommunityCard(
+                      community: list[index],
+                      isOwner: SessionService.userId == list[index].mentorId,
+                    );
+                  },
+                ),
         ),
       ],
     );

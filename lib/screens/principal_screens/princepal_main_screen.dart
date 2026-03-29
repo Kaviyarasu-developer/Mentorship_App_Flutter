@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:practice_app/screens/login_screen.dart';
+import 'package:practice_app/services/sessoin_service.dart';
 
 class PrincepalMainScreen extends StatefulWidget {
   const PrincepalMainScreen({super.key});
@@ -21,9 +21,8 @@ class _MainScreen extends State<PrincepalMainScreen> {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
   final clgcodeController = TextEditingController();
-  final _userLogin = Hive.box("users");
-  String get _role => _userLogin.get("role");
-  String get _username => _userLogin.get("username");
+  String? role = SessionService.role;
+  String? username = SessionService.username;
 
   void _showProfileMenu(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
@@ -55,12 +54,18 @@ class _MainScreen extends State<PrincepalMainScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Text(_username, style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(_role, style: const TextStyle(color: Colors.grey)),
+              Text(
+                username ?? "DEFAULT",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                role ?? "DEFAULT",
+                style: const TextStyle(color: Colors.grey),
+              ),
               const Divider(),
               Builder(
                 builder: (context) {
-                  if (_role != "STD") {
+                  if (role != "STD") {
                     return Column(
                       children: [
                         ListTile(

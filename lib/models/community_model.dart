@@ -1,5 +1,6 @@
 class CommunityModel {
   int id;
+  int mentorId;
   String name;
   String? description;
   String? field;
@@ -11,6 +12,7 @@ class CommunityModel {
 
   CommunityModel({
     required this.id,
+    required this.mentorId,
     required this.name,
     required this.description,
     required this.field,
@@ -24,6 +26,7 @@ class CommunityModel {
   factory CommunityModel.fromJson(Map<String, dynamic> json) {
     return CommunityModel(
       id: json["communityId"],
+      mentorId: json["mentorId"] ?? 0,
       name: json["communityName"] ?? "",
       description: json["communityDesc"] ?? "",
       field: json["communityField"] ?? "",

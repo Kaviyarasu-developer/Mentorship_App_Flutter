@@ -59,7 +59,6 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
   }
 
   // ---------------- FETCH MENTORS ----------------
-
   Future<void> fetchMentors() async {
     try {
       final response = await http.get(

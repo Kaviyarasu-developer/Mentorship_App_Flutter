@@ -27,12 +27,11 @@ class _CommunityCardState extends State<CommunityCard> {
   void initState() {
     super.initState();
 
-    // 🔥 INITIAL STATE FROM BACKEND
     isJoined = widget.community.isjoined;
     print(isJoined);
   }
 
-  // 🔥---------------- TOGGLE JOIN / LEAVE ------------------------
+  // ---------------- TOGGLE JOIN / LEAVE --------------------------------------
   Future<void> toggleJoin() async {
     try {
       final userId = SessionService.userId;
@@ -47,28 +46,17 @@ class _CommunityCardState extends State<CommunityCard> {
       setState(() {
         isLoading = true;
       });
-
-      final url = isJoined
-          ? "${ApiConfig.baseUrl}/community/${widget.community.id}/leave?userId=$userId"
-          : "${ApiConfig.baseUrl}/community/${widget.community.id}/join?userId=$userId";
-
-      final response = isJoined
-          ? await http.delete(Uri.parse(url))
-          : await http.post(Uri.parse(url));
-
+      final url =
+          "${ApiConfig.baseUrl}/community/toggle-join?userId=$userId&communityId=${widget.community.id}";
+      final response = await http.post(Uri.parse(url));
       if (response.statusCode == 200) {
         setState(() {
           isJoined = !isJoined;
-          // 🔥 UPDATE MEMBERS COUNT INSTANTLY
-          widget.community.members =
-              (widget.community.members ?? 0) + (isJoined ? 1 : -1);
-        });
+          widget.community.isjoined = isJoined;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isJoined ? "Joined successfully" : "Left community"),
-          ),
-        );
+          widget.community.members =
+              (widget.community.members) + (isJoined ? 1 : -1);
+        });
       } else {
         ScaffoldMessenger.of(
           context,
@@ -85,7 +73,7 @@ class _CommunityCardState extends State<CommunityCard> {
     }
   }
 
-  // 🔥 SAFE IMAGE BUILDER
+  // -------------------  SAFE IMAGE BUILDER------------------------------------
   Widget buildBannerImage() {
     final url = widget.community.imageUrl ?? "";
 
@@ -114,7 +102,6 @@ class _CommunityCardState extends State<CommunityCard> {
     );
   }
 
-  // 🔥 PROFILE IMAGE SAFE
   ImageProvider getProfileImage() {
     final url = widget.community.profileImage ?? "";
 
@@ -128,13 +115,17 @@ class _CommunityCardState extends State<CommunityCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => CommunityElementScreen(community: widget.community),
           ),
         );
+
+        if (result == true) {
+          setState(() {});
+        }
       },
 
       child: Container(
@@ -155,7 +146,6 @@ class _CommunityCardState extends State<CommunityCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔥 BANNER + GRADIENT
             Stack(
               children: [
                 ClipRRect(
@@ -195,7 +185,7 @@ class _CommunityCardState extends State<CommunityCard> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      "${widget.community.members ?? 0} members",
+                      "${widget.community.members} members",
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -203,7 +193,7 @@ class _CommunityCardState extends State<CommunityCard> {
               ],
             ),
 
-            /// 🔥 CONTENT
+            // CONTENT
             Padding(
               padding: const EdgeInsets.all(12),
 

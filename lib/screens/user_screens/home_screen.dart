@@ -279,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 10),
 
-                  /// 🔥 CHAT STYLE LIST
+                  ///  CHAT STYLE LIST
                   Expanded(
                     child: replies.isEmpty
                         ? const Center(child: Text("No replies yet"))
