@@ -8,8 +8,7 @@ void main() async {
 
   await Hive.initFlutter();
 
-  Hive.registerAdapter(UserModelAdapter()); // 🔥 important
-
+  Hive.registerAdapter(UserModelAdapter()); 
   await Hive.openBox<UserModel>("users");
 
   runApp(const MyApp());

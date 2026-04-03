@@ -13,7 +13,7 @@ class AdminpageScreen extends StatefulWidget {
 class _AdminpageScreenState extends State<AdminpageScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [ClgmngScreen(), AnouncementsScreen()];
+  final List<Widget> _screens = const [ClgmngScreen(), AnnouncementScreen()];
 
   void _onItemTapped(int index) {
     setState(() {

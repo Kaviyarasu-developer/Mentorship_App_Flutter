@@ -1,29 +1,38 @@
 import 'dart:convert';
-import 'package:practice_app/services/api_config.dart';
 import 'package:stomp_dart_client/stomp.dart';
 import 'package:stomp_dart_client/stomp_config.dart';
+import 'package:stomp_dart_client/stomp_handler.dart';
 
 class SocketService {
   static late StompClient stompClient;
+  static bool isConnected = false;
 
-  // --------------------  CONNECT ---------------------------------------------
-  static void connect({
-    required int communityId,
-    required Function(dynamic) onMessage,
-  }) {
+  static final Map<String, StompUnsubscribe> _subscriptions = {};
+
+  // ---------------- CONNECT ----------------
+  static void connect(Function onConnected) {
+    if (isConnected) {
+      onConnected();
+      return;
+    }
+
     stompClient = StompClient(
       config: StompConfig.SockJS(
         url: "http://10.0.2.2:8080/ws",
 
         onConnect: (frame) {
-          stompClient.subscribe(
-            destination: "${ApiConfig.baseUrl}/community/$communityId",
-            callback: (frame) {
-              if (frame.body != null) {
-                onMessage(jsonDecode(frame.body!));
-              }
-            },
-          );
+          print("Socket Connected");
+          isConnected = true;
+          onConnected();
+        },
+
+        onDisconnect: (frame) {
+          print("Socket Disconnected");
+          isConnected = false;
+        },
+
+        onWebSocketError: (error) {
+          print("Socket Error: $error");
         },
       ),
     );
@@ -31,21 +40,49 @@ class SocketService {
     stompClient.activate();
   }
 
-  //------------------------- SEND MESSAGE---------------------------------------
-  static void sendMessage(Map<String, dynamic> msg) {
-    try {
-      stompClient.send(
-        destination: "${ApiConfig.baseUrl}/community/message",
-        body: jsonEncode(msg),
-      );
-      print("message send from the sentMessage method in socket service");
-    } catch (e) {
-      print("error on the send message of socket service");
-    }
+  // ---------------- SUBSCRIBE ----------------
+  static void subscribe({
+    required String destination,
+    required Function(dynamic) onMessage,
+  }) {
+    if (_subscriptions.containsKey(destination)) return;
+
+    final unsubscribe = stompClient.subscribe(
+      destination: destination,
+      callback: (frame) {
+        if (frame.body != null) {
+          final data = jsonDecode(frame.body!);
+          onMessage(data);
+        }
+      },
+    );
+
+    _subscriptions[destination] = unsubscribe;
   }
 
-  // ----------------------- DISCONNECT-----------------------------------------
+  // ---------------- UNSUBSCRIBE ----------------
+  static void unsubscribe(String destination) {
+    _subscriptions[destination]?.call();
+    _subscriptions.remove(destination);
+  }
+
+  // ---------------- SEND ----------------
+  static void send({
+    required String destination,
+    required Map<String, dynamic> body,
+  }) {
+    if (!isConnected) {
+      print("Socket not connected ❌");
+      return;
+    }
+
+    stompClient.send(destination: destination, body: jsonEncode(body));
+  }
+
+  // ---------------- DISCONNECT ----------------
   static void disconnect() {
     stompClient.deactivate();
+    isConnected = false;
+    _subscriptions.clear();
   }
 }

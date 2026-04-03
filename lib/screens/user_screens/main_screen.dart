@@ -447,7 +447,7 @@ class _MainScreenState extends State<MainScreen> {
     HomeScreen(),
     PeopleSearchScreen(),
     CommunityScreen(),
-    AnouncementsScreen(),
+    AnnouncementScreen(),
   ];
 
   // ---------------- UI ----------------

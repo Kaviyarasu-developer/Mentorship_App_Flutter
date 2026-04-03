@@ -8,9 +8,7 @@ class SessionService {
   /// 🔹 Key for storing user
   static const String _userKey = "currentUser";
 
-  // ===========================
-  // 🔥 SAVE USER (LOGIN)
-  // ===========================
+  // SAVE USER (LOGIN)
   static Future<void> saveUser(UserModel user) async {
     await _box.put(_userKey, user);
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:practice_app/services/api_config.dart';
 import 'package:practice_app/services/sessoin_service.dart';
+import 'package:practice_app/services/socket_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,31 +63,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ---------------- SAVE QUESTION ----------------
-
   Future<void> saveQuestion() async {
     if (questionController.text.trim().isEmpty) return;
 
     String questionText = questionController.text.trim();
 
     questionController.clear();
-
     FocusScope.of(context).unfocus();
 
-    try {
-      final response = await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/questions"),
-
-        headers: {"Content-Type": "application/json"},
-
-        body: jsonEncode({"message": questionText, "userId": userId}),
-      );
-
-      if (response.statusCode == 200) {
-        fetchQuestions();
-      }
-    } catch (e) {
-      debugPrint("save error: $e");
-    }
+    SocketService.send(
+      destination: "/app/question.create",
+      body: {"message": questionText, "userId": userId},
+    );
   }
 
   //-----------------  DELETE QUESTION  -----------------------
@@ -181,21 +169,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ---------------- SEND REPLY ----------------
-
-  Future<void> sendReply(int questionId, String message) async {
-    try {
-      await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/replies"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "message": message,
-          "userId": userId,
-          "questionId": questionId,
-        }),
-      );
-    } catch (e) {
-      debugPrint("reply send error: $e");
-    }
+  void sendReply(int questionId, String message) {
+    SocketService.send(
+      destination: "/app/reply.create",
+      body: {"message": message, "userId": userId, "questionId": questionId},
+    );
   }
 
   //----------------- DELETE REPLY ----------------------
@@ -242,6 +220,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
     TextEditingController replyController = TextEditingController();
 
+    Function? setStateModalRef;
+
+    SocketService.subscribe(
+      destination: "/topic/replies/$questionId",
+      onMessage: (data) {
+        if (setStateModalRef == null) return; 
+
+        setStateModalRef!(() {
+          if (data["type"] == "DELETE") {
+            replies.removeWhere((r) => r["id"] == data["id"]);
+            return;
+          }
+
+          final exists = replies.any((r) => r["id"] == data["id"]);
+
+          if (!exists) {
+            replies.add(data);
+          }
+        });
+      },
+    );
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -249,8 +249,11 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateModal) {
+            setStateModalRef = setStateModal;
             return Container(
-              height: MediaQuery.of(context).size.height * 0.85,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -325,7 +328,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onDoubleTap: () async {
                                       await likeReply(r["id"]);
 
-                                      // 🔥 REFRESH FROM BACKEND (REAL DATA)
                                       List<Map<String, dynamic>>
                                       updatedReplies = await fetchReplies(
                                         questionId,
@@ -401,7 +403,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                           const SizedBox(height: 6),
 
-                                          /// ❤️ LIKE ROW
                                           Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
@@ -480,15 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             onPressed: () async {
                               if (replyController.text.trim().isEmpty) return;
 
-                              await sendReply(questionId, replyController.text);
-
-                              List<Map<String, dynamic>> updatedReplies =
-                                  await fetchReplies(questionId);
-
-                              setStateModal(() {
-                                replies = updatedReplies;
-                              });
-                              refreshHome();
+                              sendReply(questionId, replyController.text);
 
                               replyController.clear();
                             },
@@ -511,11 +504,43 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     fetchQuestions();
+
+    SocketService.connect(() {
+      SocketService.subscribe(
+        destination: "/topic/questions",
+        onMessage: (data) {
+          setState(() {
+            // DELETE EVENT
+            if (data["type"] == "DELETE") {
+              questions.removeWhere((q) => q["id"] == data["id"]);
+              return;
+            }
+
+            final exists = questions.any((q) => q["id"] == data["id"]);
+
+            if (!exists) {
+              questions.insert(0, {
+                "userId": data["userId"],
+                "id": data["id"],
+                "user": data["username"],
+                "role": data["role"],
+                "question": data["message"],
+                "likes": data["likesCount"],
+                "isLiked": data["isLiked"],
+                "replies": data["replyCount"],
+              });
+            }
+          });
+        },
+      );
+    });
   }
 
   @override
   void dispose() {
+    SocketService.unsubscribe("/topic/questions");
     questionController.dispose();
     super.dispose();
   }

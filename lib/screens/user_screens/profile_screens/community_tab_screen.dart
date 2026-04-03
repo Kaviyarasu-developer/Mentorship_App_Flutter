@@ -26,6 +26,13 @@ class _CommunityTabState extends State<CommunityTab> {
 
   bool isLoading = true;
 
+  // ---------------- DELETE HANDLER ----------------
+  void handleDelete(int id) {
+    setState(() {
+      communities.removeWhere((c) => c.id == id);
+    });
+  }
+
   /// FETCH COMMUNITIES FROM BACKEND
   Future<void> fetchCommunities() async {
     try {
@@ -309,6 +316,7 @@ class _CommunityTabState extends State<CommunityTab> {
               return CommunityCard(
                 community: communities[index],
                 isOwner: widget.isOwner,
+                onDelete: handleDelete,
               );
             },
           ),

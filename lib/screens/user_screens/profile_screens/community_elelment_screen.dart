@@ -36,35 +36,42 @@ class _CommunityElementScreenState extends State<CommunityElementScreen>
   final TextEditingController controller = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    tabController = TabController(length: 2, vsync: this);
+  tabController = TabController(length: 2, vsync: this);
 
-    isMentor =
-        SessionService.role == "MENTOR" &&
-        (SessionService.userId == widget.community.mentorId);
+  isMentor =
+      SessionService.role == "MENTOR" &&
+      (SessionService.userId == widget.community.mentorId);
 
-    initData();
-    loadMessages();
+  initData();
+  loadMessages();
 
-    SocketService.connect(
-      communityId: widget.community.id,
-      onMessage: (msg) {
+  // 🔥 ADD THIS
+  SocketService.connect(() {
+    SocketService.subscribe(
+      destination: "/topic/community/${widget.community.id}",
+      onMessage: (data) {
         setState(() {
-          final msgId = msg["id"];
 
-          if (msgId != null) {
-            if (!messages.any((m) => m["id"] == msgId)) {
-              messages.add(msg);
-            }
-          } else {
-            messages.add(msg);
+          // 🔴 DELETE EVENT
+          if (data["type"] == "DELETE") {
+            messages.removeWhere((m) => m["id"] == data["id"]);
+            return;
+          }
+
+          // 🟢 NEW MESSAGE / POST
+          final exists = messages.any((m) => m["id"] == data["id"]);
+
+          if (!exists) {
+            messages.add(data);
           }
         });
       },
     );
-  }
+  });
+}
 
   Future<void> initData() async {
     final joined = await isJoinedFunc(
@@ -79,11 +86,11 @@ class _CommunityElementScreenState extends State<CommunityElementScreen>
   }
 
   @override
-  void dispose() {
-    SocketService.disconnect();
-    tabController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  SocketService.unsubscribe("/topic/community/${widget.community.id}");
+  tabController.dispose();
+  super.dispose();
+}
 
   Future<void> toggleJoin() async {
     if (isLoading) return;
@@ -191,30 +198,21 @@ class _CommunityElementScreenState extends State<CommunityElementScreen>
   }
 
   // ---------------------  SEND MESSAGE ---------------------------------------
-  void sendMessage({String? text, String? imageUrl}) async {
-    if ((text == null || text.trim().isEmpty) && imageUrl == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/community/message"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "communityId": widget.community.id,
-          "userId": SessionService.userId,
-          "message": text,
-          "imageUrl": imageUrl,
-          "username": SessionService.username,
-          "role": SessionService.role,
-        }),
-      );
-      if (response.statusCode == 200) {
-        loadMessages();
-        controller.clear();
-      }
-    } catch (e) {}
+void sendMessage({String? text, String? imageUrl}) {
+  if ((text == null || text.trim().isEmpty) && imageUrl == null) return;
 
-    /// SEND TO BACKEND
-    //SocketService.sendMessage(msg);
-  }
+  SocketService.send(
+    destination: "/app/community.send",
+    body: {
+      "communityId": widget.community.id,
+      "userId": SessionService.userId,
+      "message": text,
+      "imageUrl": imageUrl,
+    },
+  );
+
+  controller.clear();
+}
 
   // --------------------- CHAT UI  --------------------------------------------
   Widget buildMessages() {
@@ -325,8 +323,8 @@ class _CommunityElementScreenState extends State<CommunityElementScreen>
                       padding: const EdgeInsets.only(top: 8),
                       child: Image.network(
                         m["imageUrl"].toString().startsWith("http")
-                            ? m["imageUrl"] // already full URL
-                            : "${ApiConfig.baseUrl2}${m["imageUrl"]}", // backend path
+                            ? m["imageUrl"]
+                            : "${ApiConfig.baseUrl2}${m["imageUrl"]}",
 
                         height: 150,
                         fit: BoxFit.cover,

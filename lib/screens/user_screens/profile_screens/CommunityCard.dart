@@ -8,11 +8,15 @@ import 'package:practice_app/services/sessoin_service.dart';
 class CommunityCard extends StatefulWidget {
   final CommunityModel community;
   final bool isOwner;
+  final Function(int id) onDelete;
+  final Function(int id, bool isJoined)? onJoinToggle;
 
   const CommunityCard({
     super.key,
     required this.community,
     required this.isOwner,
+    required this.onDelete,
+    this.onJoinToggle,
   });
 
   @override
@@ -28,7 +32,31 @@ class _CommunityCardState extends State<CommunityCard> {
     super.initState();
 
     isJoined = widget.community.isjoined;
-    print(isJoined);
+  }
+
+  // ---------------- DELETE ----------------
+  Future<void> deleteCommunity() async {
+    try {
+      final response = await http.delete(
+        Uri.parse(
+          "${ApiConfig.baseUrl}/community/delete/${widget.community.id}",
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        widget.onDelete(widget.community.id);
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Deleted successfully")));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Delete failed")));
+      }
+    } catch (e) {
+      print("Delete error: $e");
+    }
   }
 
   // ---------------- TOGGLE JOIN / LEAVE --------------------------------------
@@ -50,13 +78,20 @@ class _CommunityCardState extends State<CommunityCard> {
           "${ApiConfig.baseUrl}/community/toggle-join?userId=$userId&communityId=${widget.community.id}";
       final response = await http.post(Uri.parse(url));
       if (response.statusCode == 200) {
+        final newState = !isJoined;
+
         setState(() {
-          isJoined = !isJoined;
-          widget.community.isjoined = isJoined;
+          isJoined = newState;
+          widget.community.isjoined = newState;
 
           widget.community.members =
-              (widget.community.members) + (isJoined ? 1 : -1);
+              widget.community.members + (newState ? 1 : -1);
         });
+
+        // 🔥 ADD THIS LINE (CRITICAL)
+        if (widget.onJoinToggle != null) {
+          widget.onJoinToggle!(widget.community.id, newState);
+        }
       } else {
         ScaffoldMessenger.of(
           context,
@@ -243,7 +278,11 @@ class _CommunityCardState extends State<CommunityCard> {
                   widget.isOwner
                       ? PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert),
-                          onSelected: (value) {},
+                          onSelected: (value) {
+                            if (value == "delete") {
+                              deleteCommunity();
+                            }
+                          },
                           itemBuilder: (context) => const [
                             PopupMenuItem(value: "edit", child: Text("Edit")),
                             PopupMenuItem(
