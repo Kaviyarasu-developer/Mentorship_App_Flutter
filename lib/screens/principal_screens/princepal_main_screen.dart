@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:http/http.dart' as http;
 import 'package:practice_app/screens/login_screen.dart';
+import 'package:practice_app/services/api_config.dart';
 import 'package:practice_app/services/sessoin_service.dart';
 
 class PrincepalMainScreen extends StatefulWidget {
@@ -105,7 +106,7 @@ class _MainScreen extends State<PrincepalMainScreen> {
     Future<void> createStudent() async {
       try {
         final response = await http.post(
-          Uri.parse("http://10.0.2.2:8080/app/account/create"),
+          Uri.parse("${ApiConfig.baseUrl}/account/create"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode({
             "name": nameController.text,
@@ -252,7 +253,7 @@ class _MainScreen extends State<PrincepalMainScreen> {
 
   Future<void> fetchStaffs() async {
     final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/account/STAFF/getall"),
+      Uri.parse("${ApiConfig.baseUrl}/account/STAFF/getall"),
     );
 
     if (response.statusCode == 200) {

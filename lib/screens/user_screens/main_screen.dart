@@ -392,7 +392,7 @@ class _MainScreenState extends State<MainScreen> {
 
                   if (!mounted) return;
 
-                  Navigator.pop(context);
+                  Navigator.pop(context,true);
                 }
               },
               child: const Text("Create"),

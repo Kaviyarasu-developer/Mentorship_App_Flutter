@@ -8,6 +8,7 @@ import 'package:practice_app/screens/user_screens/staff_profile_screen.dart';
 import 'package:practice_app/screens/user_screens/student_profile_screen.dart';
 import 'package:practice_app/services/api_config.dart';
 import 'package:practice_app/services/sessoin_service.dart';
+import 'package:practice_app/services/socket_service.dart';
 
 class PeopleSearchScreen extends StatefulWidget {
   const PeopleSearchScreen({super.key});
@@ -126,7 +127,46 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
   @override
   void initState() {
     super.initState();
+
     loadAllUsers();
+
+    SocketService.connect(() {
+      SocketService.subscribe(
+        destination: "/topic/users/delete",
+        onMessage: (data) {
+          final deletedId = data;
+
+          setState(() {
+            students.removeWhere((e) => e.id == deletedId);
+            mentors.removeWhere((e) => e.id == deletedId);
+            staff.removeWhere((e) => e.id == deletedId);
+          });
+        },
+      );
+
+      SocketService.subscribe(
+        destination: "/topic/users/create",
+        onMessage: (data) {
+          final newUser = UserModel.fromJson(data);
+
+          setState(() {
+            if (newUser.role == "STD") {
+              students.add(newUser);
+            } else if (newUser.role == "MENTOR") {
+              mentors.add(newUser);
+            } else {
+              staff.add(newUser);
+            }
+          });
+        },
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    SocketService.unsubscribe("/topic/users/delete");
+    super.dispose();
   }
 
   // ---------------- FILTERED LIST ----------------
@@ -139,6 +179,29 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
     if (selectedFilter == "STAFF") return staff;
 
     return [...students, ...mentors, ...staff];
+  }
+
+  //---------------- DELETE USER --------------------
+  Future<void> _deleteUser(UserModel person) async {
+    try {
+      final response = await http.delete(
+        Uri.parse("${ApiConfig.baseUrl}/account/delete/${person.id}"),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          students.removeWhere((e) => e.id == person.id);
+          mentors.removeWhere((e) => e.id == person.id);
+          staff.removeWhere((e) => e.id == person.id);
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("User deleted")));
+      }
+    } catch (e) {
+      debugPrint("Delete error: $e");
+    }
   }
 
   // ---------------- UI ----------------
@@ -163,7 +226,7 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 0.75,
+                    childAspectRatio: 0.65,
                   ),
 
                   itemCount: currentList.length,
@@ -203,13 +266,8 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
   Widget _buildPersonCard(UserModel person) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-
       onTap: () {
-        if (userId == person.id) {
-          isOwner = true;
-        } else {
-          isOwner = false;
-        }
+        bool isOwner = userId == person.id;
 
         if (person.role == "MENTOR") {
           Navigator.push(
@@ -255,55 +313,104 @@ class _PeopleSearchScreenState extends State<PeopleSearchScreen> {
 
       child: Card(
         elevation: 4,
-
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
 
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-
-          child: Column(
-            children: [
-              const CircleAvatar(
-                radius: 35,
-                foregroundImage: AssetImage(
-                  "assets/images/profile_placeholder_image.png",
+        child: Stack(
+          children: [
+            if (userRole == "STAFF" && userId != person.id)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (value) {
+                    if (value == "delete") {
+                      _showDeleteDialog(person);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: "delete", child: Text("Delete")),
+                  ],
                 ),
               ),
 
-              const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 30, 12, 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Column(
+                    children: [
+                      const CircleAvatar(
+                        radius: 45,
+                        foregroundImage: AssetImage(
+                          "assets/images/profile_placeholder_image.png",
+                        ),
+                      ),
 
-              Text(
-                person.name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                      const SizedBox(height: 12),
+
+                      Text(
+                        person.name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+
+                      const SizedBox(height: 3),
+
+                      Text(
+                        "@${person.username}",
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      Text(
+                        person.role,
+                        style: TextStyle(
+                          color: _getRoleColor(person.role),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(width: double.infinity),
+                ],
               ),
-
-              const SizedBox(height: 4),
-
-              Text(
-                "@${person.username}",
-                style: const TextStyle(color: Colors.grey),
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-                person.role,
-                style: TextStyle(
-                  color: _getRoleColor(person.role),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const Spacer(),
-
-              ElevatedButton(onPressed: () {}, child: const Text("Connect")),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(UserModel person) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: Text("Delete ${person.name}?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteUser(person);
+            },
+            child: const Text("Delete"),
+          ),
+        ],
       ),
     );
   }

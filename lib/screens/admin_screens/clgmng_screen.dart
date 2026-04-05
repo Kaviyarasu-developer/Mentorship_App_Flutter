@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:practice_app/services/api_config.dart';
 
 class ClgmngScreen extends StatefulWidget {
   const ClgmngScreen({super.key});
@@ -24,7 +25,7 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
 
   Future<void> fetchColleges() async {
     final response = await http.get(
-      Uri.parse("http://10.0.2.2:8080/app/account/PRINCIPAL/getall"),
+      Uri.parse("${ApiConfig.baseUrl}/account/PRINCIPAL/getall"),
     );
 
     if (response.statusCode == 200) {
@@ -52,7 +53,7 @@ class _ClgmngScreenState extends State<ClgmngScreen> {
   Future<void> createCollege() async {
     try {
       final response = await http.post(
-        Uri.parse("http://10.0.2.2:8080/app/account/create"),
+        Uri.parse("${ApiConfig.baseUrl}/account/create"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "clgname": clgnameController.text.trim(),

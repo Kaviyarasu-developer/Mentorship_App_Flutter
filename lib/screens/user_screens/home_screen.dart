@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
     SocketService.subscribe(
       destination: "/topic/replies/$questionId",
       onMessage: (data) {
-        if (setStateModalRef == null) return; 
+        if (setStateModalRef == null) return;
 
         setStateModalRef!(() {
           if (data["type"] == "DELETE") {
@@ -250,247 +250,254 @@ class _HomeScreenState extends State<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setStateModal) {
             setStateModalRef = setStateModal;
-            return Container(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
+            return FractionallySizedBox(
+              heightFactor: 0.75,
+              child: Container(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
 
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
 
-                  /// DRAG HANDLE
-                  Container(
-                    height: 4,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(10),
+                    /// DRAG HANDLE
+                    Container(
+                      height: 4,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                  const Text(
-                    "Replies",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                    const Text(
+                      "Replies",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
 
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                  ///  CHAT STYLE LIST
-                  Expanded(
-                    child: replies.isEmpty
-                        ? const Center(child: Text("No replies yet"))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(12),
-                            itemCount: replies.length,
-                            itemBuilder: (context, index) {
-                              final r = replies[index];
-                              bool isMe = (r["userId"] ?? -1) == userId;
+                    ///  CHAT STYLE LIST
+                    Expanded(
+                      child: replies.isEmpty
+                          ? const Center(child: Text("No replies yet"))
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: replies.length,
+                              itemBuilder: (context, index) {
+                                final r = replies[index];
+                                bool isMe = (r["userId"] ?? -1) == userId;
 
-                              return Align(
-                                alignment: isMe
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
+                                return Align(
+                                  alignment: isMe
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
 
-                                child: Dismissible(
-                                  key: ValueKey(r["id"]),
+                                  child: Dismissible(
+                                    key: ValueKey(r["id"]),
 
-                                  direction: isMe
-                                      ? DismissDirection.endToStart
-                                      : DismissDirection.none,
+                                    direction: isMe
+                                        ? DismissDirection.endToStart
+                                        : DismissDirection.none,
 
-                                  background: Container(
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20),
-                                    color: Colors.red,
-                                    child: const Icon(
-                                      Icons.delete,
-                                      color: Colors.white,
+                                    background: Container(
+                                      alignment: Alignment.centerRight,
+                                      padding: const EdgeInsets.only(right: 20),
+                                      color: Colors.red,
+                                      child: const Icon(
+                                        Icons.delete,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  ),
 
-                                  onDismissed: (_) {
-                                    deleteReply(
-                                      r["id"],
-                                      questionId,
-                                      setStateModal,
-                                      replies,
-                                    );
-                                  },
-
-                                  child: GestureDetector(
-                                    onDoubleTap: () async {
-                                      await likeReply(r["id"]);
-
-                                      List<Map<String, dynamic>>
-                                      updatedReplies = await fetchReplies(
+                                    onDismissed: (_) {
+                                      deleteReply(
+                                        r["id"],
                                         questionId,
+                                        setStateModal,
+                                        replies,
                                       );
-
-                                      setStateModal(() {
-                                        replies = updatedReplies;
-                                      });
                                     },
 
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 250,
-                                      ),
-                                      margin: const EdgeInsets.symmetric(
-                                        vertical: 6,
-                                      ),
-                                      padding: const EdgeInsets.all(12),
+                                    child: GestureDetector(
+                                      onDoubleTap: () async {
+                                        await likeReply(r["id"]);
 
-                                      constraints: BoxConstraints(
-                                        maxWidth:
-                                            MediaQuery.of(context).size.width *
-                                            0.7,
-                                      ),
+                                        List<Map<String, dynamic>>
+                                        updatedReplies = await fetchReplies(
+                                          questionId,
+                                        );
 
-                                      decoration: BoxDecoration(
-                                        color: isMe
-                                            ? Colors.indigo
-                                            : Colors.grey[200],
+                                        setStateModal(() {
+                                          replies = updatedReplies;
+                                        });
+                                      },
 
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: const Radius.circular(16),
-                                          topRight: const Radius.circular(16),
-                                          bottomLeft: Radius.circular(
-                                            isMe ? 16 : 0,
-                                          ),
-                                          bottomRight: Radius.circular(
-                                            isMe ? 0 : 16,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 250,
+                                        ),
+                                        margin: const EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
+                                        padding: const EdgeInsets.all(12),
+
+                                        constraints: BoxConstraints(
+                                          maxWidth:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.width *
+                                              0.7,
+                                        ),
+
+                                        decoration: BoxDecoration(
+                                          color: isMe
+                                              ? Colors.indigo
+                                              : Colors.grey[200],
+
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: const Radius.circular(16),
+                                            topRight: const Radius.circular(16),
+                                            bottomLeft: Radius.circular(
+                                              isMe ? 16 : 0,
+                                            ),
+                                            bottomRight: Radius.circular(
+                                              isMe ? 0 : 16,
+                                            ),
                                           ),
                                         ),
-                                      ),
 
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          /// NAME + ROLE
-                                          Text(
-                                            isMe
-                                                ? "You (${SessionService.role})"
-                                                : "${r["user"]} (${r["role"] ?? "USER"})",
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: isMe
-                                                  ? Colors.white70
-                                                  : Colors.black54,
-                                            ),
-                                          ),
-
-                                          const SizedBox(height: 4),
-
-                                          /// MESSAGE
-                                          Text(
-                                            r["message"],
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              color: isMe
-                                                  ? Colors.white
-                                                  : Colors.black,
-                                            ),
-                                          ),
-
-                                          const SizedBox(height: 6),
-
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                (r["isLiked"] ?? false)
-                                                    ? Icons.favorite
-                                                    : Icons.favorite_border,
-                                                size: 16,
-                                                color: Colors.red,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            /// NAME + ROLE
+                                            Text(
+                                              isMe
+                                                  ? "You (${SessionService.role})"
+                                                  : "${r["user"]} (${r["role"] ?? "USER"})",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: isMe
+                                                    ? Colors.white70
+                                                    : Colors.black54,
                                               ),
+                                            ),
 
-                                              const SizedBox(width: 4),
+                                            const SizedBox(height: 4),
 
-                                              Text(
-                                                "${r["likes"]}",
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: isMe
-                                                      ? Colors.white70
-                                                      : Colors.black54,
+                                            /// MESSAGE
+                                            Text(
+                                              r["message"],
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                color: isMe
+                                                    ? Colors.white
+                                                    : Colors.black,
+                                              ),
+                                            ),
+
+                                            const SizedBox(height: 6),
+
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  (r["isLiked"] ?? false)
+                                                      ? Icons.favorite
+                                                      : Icons.favorite_border,
+                                                  size: 16,
+                                                  color: Colors.red,
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+
+                                                const SizedBox(width: 4),
+
+                                                Text(
+                                                  "${r["likes"] ?? 0}",
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isMe
+                                                        ? Colors.white70
+                                                        : Colors.black54,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(blurRadius: 5, color: Colors.black12),
+                        ],
+                      ),
+
+                      child: Row(
+                        children: [
+                          /// TEXT FIELD
+                          Expanded(
+                            child: TextField(
+                              controller: replyController,
+                              decoration: InputDecoration(
+                                hintText: "Write a reply...",
+                                filled: true,
+                                fillColor: Colors.grey[200],
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                  borderSide: BorderSide.none,
                                 ),
-                              );
-                            },
-                          ),
-                  ),
-
-                  /// 🔥 INPUT FIELD (WHATSAPP STYLE)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(blurRadius: 5, color: Colors.black12),
-                      ],
-                    ),
-
-                    child: Row(
-                      children: [
-                        /// TEXT FIELD
-                        Expanded(
-                          child: TextField(
-                            controller: replyController,
-                            decoration: InputDecoration(
-                              hintText: "Write a reply...",
-                              filled: true,
-                              fillColor: Colors.grey[200],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(25),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        const SizedBox(width: 8),
+                          const SizedBox(width: 8),
 
-                        /// SEND BUTTON
-                        CircleAvatar(
-                          backgroundColor: Colors.indigo,
-                          child: IconButton(
-                            icon: const Icon(Icons.send, color: Colors.white),
-                            onPressed: () async {
-                              if (replyController.text.trim().isEmpty) return;
+                          /// SEND BUTTON
+                          CircleAvatar(
+                            backgroundColor: Colors.indigo,
+                            child: IconButton(
+                              icon: const Icon(Icons.send, color: Colors.white),
+                              onPressed: () async {
+                                if (replyController.text.trim().isEmpty) return;
 
-                              sendReply(questionId, replyController.text);
+                                sendReply(questionId, replyController.text);
 
-                              replyController.clear();
-                            },
+                                replyController.clear();
+                              },
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },

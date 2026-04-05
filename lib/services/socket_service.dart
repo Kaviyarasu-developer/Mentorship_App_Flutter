@@ -18,7 +18,7 @@ class SocketService {
 
     stompClient = StompClient(
       config: StompConfig.SockJS(
-        url: "http://10.0.2.2:8080/ws",
+        url: "https://practice-app-spring-boot.onrender.com/ws",
 
         onConnect: (frame) {
           print("Socket Connected");
@@ -72,7 +72,7 @@ class SocketService {
     required Map<String, dynamic> body,
   }) {
     if (!isConnected) {
-      print("Socket not connected ❌");
+      print("Socket not connected");
       return;
     }
 
